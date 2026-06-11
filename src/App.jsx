@@ -21,6 +21,7 @@ import OrderSuccess from "./pages/OrderSuccess";
 import Invoice from "./pages/Invoice";
 import MyOrders from "./pages/MyOrders";
 import ReturnRequest from "./pages/ReturnRequest";
+import InstallPrompt from "./components/InstallPrompt";
 import ReviewForm from "./pages/ReviewForm";
 import Profile from "./pages/Profile";
 // Sales
@@ -68,6 +69,7 @@ export default function App() {
               <SalesCartProvider>
                 <BrowserRouter>
               <TitleManager />
+              <InstallPrompt />
               <Routes>
                 {/* Customer auth */}
                 <Route path="/login" element={<Login />} />
