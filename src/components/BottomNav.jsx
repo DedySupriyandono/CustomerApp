@@ -29,15 +29,17 @@ export default function BottomNav() {
         active={isActive("/orders")}
       />
 
-      {/* Center floating button */}
+      {/* Center floating button → Penjualan (sell from customer's stock) */}
       <button
-        onClick={() => navigate("/catalog")}
+        onClick={() => navigate("/sell")}
         className="relative flex flex-col items-center justify-end -mt-10 mb-1"
       >
         <div className="absolute -top-12 w-[60px] h-[60px] bg-[#C11717] rounded-full flex items-center justify-center shadow-lg shadow-red-900/20 border-[4px] border-[#FAFAFA]">
           <Scan className="w-7 h-7 text-white" />
         </div>
-        <span className="text-[10px] font-medium text-gray-400 mt-2">Penjualan</span>
+        <span className={`text-[10px] font-medium mt-2 ${isActive("/sell") ? "text-[#C11717]" : "text-gray-400"}`}>
+          Penjualan
+        </span>
       </button>
 
       <NavItem
