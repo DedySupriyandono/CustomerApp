@@ -49,6 +49,29 @@ function TitleManager() {
   return null;
 }
 
+// Swap <link rel="manifest"> sesuai portal.
+//   /sales/*  → /manifest-sales.webmanifest  (Sales Belanja Yuk, scope /sales)
+//   lainnya  → /manifest.webmanifest         (Belanja Yuk, scope /)
+// Browser membaca manifest yang aktif saat user trigger install — jadi
+// swap-nya cukup di runtime sebelum klik Install.
+// Apple title juga ikut diganti supaya nama di home screen iOS akurat.
+function ManifestManager() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const isSales = pathname.startsWith("/sales");
+    const link = document.querySelector('link[rel="manifest"]');
+    if (link) {
+      const target = isSales ? "/manifest-sales.webmanifest" : "/manifest.webmanifest";
+      if (link.getAttribute("href") !== target) link.setAttribute("href", target);
+    }
+    const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    if (appleTitle) {
+      appleTitle.setAttribute("content", isSales ? "Sales Belanja Yuk" : "Belanja Yuk");
+    }
+  }, [pathname]);
+  return null;
+}
+
 function RequireAuth({ children }) {
   const { user } = useAuth();
   return user ? children : <Navigate to="/login" replace />;
@@ -69,6 +92,7 @@ export default function App() {
               <SalesCartProvider>
                 <BrowserRouter>
               <TitleManager />
+              <ManifestManager />
               <InstallPrompt />
               <Routes>
                 {/* Customer auth */}

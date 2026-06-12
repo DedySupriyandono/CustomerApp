@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Download, Share, X } from "lucide-react";
 
 // PWA install prompt — auto detect & tampilkan tombol Install.
+// Portal-aware: customer ("/") dan sales ("/sales") install sebagai
+// dua PWA terpisah — manifest beda, dismiss key beda. Banner hanya
+// muncul di portal yang sesuai dgn URL saat ini.
 //
 // Android Chrome:
 //   beforeinstallprompt event → tampung deferredPrompt; klik tombol → prompt().
@@ -10,10 +14,9 @@ import { Download, Share, X } from "lucide-react";
 //
 // Sembunyikan kalau:
 //   - sudah standalone (display-mode atau navigator.standalone)
-//   - user pernah dismiss dalam 7 hari terakhir (localStorage)
-//   - bukan mobile (desktop tetap bisa via UI browser)
+//   - user pernah dismiss dalam 7 hari terakhir (localStorage, per-portal)
 
-const DISMISS_KEY = "pwa-install-dismissed-at";
+const DISMISS_KEY_PREFIX = "pwa-install-dismissed-at";
 const DISMISS_MS = 7 * 24 * 60 * 60 * 1000;
 
 function isStandalone() {
@@ -29,9 +32,9 @@ function isIos() {
   return /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.MSStream;
 }
 
-function isRecentlyDismissed() {
+function isRecentlyDismissed(portal) {
   try {
-    const v = localStorage.getItem(DISMISS_KEY);
+    const v = localStorage.getItem(`${DISMISS_KEY_PREFIX}-${portal}`);
     if (!v) return false;
     return Date.now() - Number(v) < DISMISS_MS;
   } catch (e) {
@@ -40,13 +43,23 @@ function isRecentlyDismissed() {
 }
 
 export default function InstallPrompt() {
+  const { pathname } = useLocation();
+  const portal = pathname.startsWith("/sales") ? "sales" : "customer";
+  const portalName = portal === "sales" ? "Sales Belanja Yuk" : "Belanja Yuk";
+
   const [deferred, setDeferred] = useState(null);
   const [show, setShow] = useState(false);
   const [showIosHint, setShowIosHint] = useState(false);
 
   useEffect(() => {
+    // Saat pindah portal: reset visible state. Banner di portal baru akan
+    // bangkit kalau memenuhi syarat.
+    setShow(false);
+    setShowIosHint(false);
+    setDeferred(null);
+
     if (isStandalone()) return;
-    if (isRecentlyDismissed()) return;
+    if (isRecentlyDismissed(portal)) return;
 
     const handler = (e) => {
       e.preventDefault();
@@ -74,10 +87,10 @@ export default function InstallPrompt() {
       window.removeEventListener("appinstalled", installedHandler);
       if (iosTimer) clearTimeout(iosTimer);
     };
-  }, []);
+  }, [portal]);
 
   const dismiss = () => {
-    try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch (e) {}
+    try { localStorage.setItem(`${DISMISS_KEY_PREFIX}-${portal}`, String(Date.now())); } catch (e) {}
     setShow(false);
     setShowIosHint(false);
   };
@@ -106,7 +119,7 @@ export default function InstallPrompt() {
       >
         <img src="/pwa-192.png" alt="" className="w-10 h-10 rounded-lg" />
         <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-bold text-[#1A0000] truncate">Install Belanja Yuk</div>
+          <div className="text-[13px] font-bold text-[#1A0000] truncate">Install {portalName}</div>
           <div className="text-[11px] text-gray-500 truncate">
             {isIos()
               ? "Tap untuk lihat cara install"

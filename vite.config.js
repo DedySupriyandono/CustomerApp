@@ -19,6 +19,9 @@ export default defineConfig({
         orientation: "portrait",
         start_url: "/",
         scope: "/",
+        // id berbeda dari sales (yang pakai "/sales") supaya browser treat
+        // sebagai dua PWA terpisah & boleh ke-install dua-duanya.
+        id: "/",
         lang: "id",
         icons: [
           { src: "/pwa-192.png", sizes: "192x192", type: "image/png" },
