@@ -154,6 +154,7 @@ export default function Profile() {
                 <InfoRow icon={<Building2 className="w-4 h-4" />} label="Regional" value={customer.regional} />
                 <InfoRow label="Branch" value={customer.branch} />
                 {customer.subBranch && <InfoRow label="Sub Branch" value={customer.subBranch} />}
+                <InfoRow label="Warehouse" value={customer.warehouseName} />
               </div>
 
               {/* Identitas */}
