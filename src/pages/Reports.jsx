@@ -1,36 +1,28 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowLeft,
-  Bell,
-  ShoppingCart,
-  Search,
-  ChevronLeft,
-  ChevronRight,
+  ArrowLeft, Bell, ShoppingCart, Search,
+  ChevronLeft, ChevronRight, CheckCircle2, XCircle,
 } from "lucide-react";
 import api from "../api/api";
 import BottomNav from "../components/BottomNav";
 import { useCart } from "../contexts/CartContext";
 import { rupiah } from "../utils/format";
 
-// Transaksi aktif saja — order final (Selesai + Dibatalkan) ada di /reports.
-// Urutan flow:
-//   Menunggu Konfirmasi → Diproses Sales → Diproses Admin → Dipicking → Dikirim → Selesai
-const STATUS_OPTIONS = [
-  { value: "", label: "Semua" },
-  { value: "Menunggu Konfirmasi", label: "Menunggu Konfirmasi" },
-  { value: "Diproses Sales", label: "Diproses Sales" },
-  { value: "Diproses Admin", label: "Diproses Admin" },
-  { value: "Dipicking", label: "Dipicking" },
-  { value: "Dikirim", label: "Dikirim" },
-];
+// Laporan transaksi customer: hanya status final (Selesai + Dibatalkan).
+// Backend support CSV status → 1 request bisa fetch dua-duanya.
+//
+// Tab Semua = "Selesai,Dibatalkan", Selesai = "Selesai", Dibatalkan = "Dibatalkan".
 
-// Status yang dianggap sudah final & masuk Laporan, tidak tampil di Transaksi.
-const HISTORY_STATUSES = "Selesai,Dibatalkan";
+const STATUS_TABS = [
+  { value: "Selesai,Dibatalkan", label: "Semua" },
+  { value: "Selesai", label: "Selesai" },
+  { value: "Dibatalkan", label: "Dibatalkan" },
+];
 
 const PAGE_SIZE = 10;
 
-export default function MyOrders() {
+export default function Reports() {
   const navigate = useNavigate();
   const { totalItems } = useCart();
 
@@ -38,54 +30,20 @@ export default function MyOrders() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState("Selesai,Dibatalkan");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [finishingId, setFinishingId] = useState(0);
-
-  // Tombol "Selesai" → POST /customer/receive/confirm.
-  // Anti double-click via finishingId state.
-  const finishOrder = async (orderId) => {
-    if (finishingId) return;
-    if (!window.confirm("Konfirmasi semua barang sudah diterima dengan baik?")) return;
-    setFinishingId(orderId);
-    try {
-      const r = await api.post("/customer/receive/confirm", { orderId });
-      if (r.data?.success) {
-        alert(r.data.message || "Pesanan diselesaikan.");
-        // Refresh list
-        setOrders((prev) =>
-          prev.map((o) => (o.id === orderId ? { ...o, status: "Selesai" } : o))
-        );
-      } else {
-        alert(r.data?.message || "Gagal selesaikan pesanan.");
-      }
-    } catch (e) {
-      alert(e.response?.data?.message || "Server error.");
-    } finally {
-      setFinishingId(0);
-    }
-  };
 
   useEffect(() => {
     setLoading(true);
     setError("");
     api
       .get("/customer/orders", {
-        params: {
-          status: status || undefined,
-          // Selalu exclude status final supaya halaman Transaksi tidak overlap
-          // dgn halaman Laporan. Berlaku juga saat tab "Semua".
-          excludeStatus: HISTORY_STATUSES,
-          search: search || undefined,
-          page,
-          pageSize: PAGE_SIZE,
-        },
+        params: { status, search: search || undefined, page, pageSize: PAGE_SIZE },
       })
       .then((r) => {
-        // Tolerate both old (array) and new (envelope) response shapes.
         if (Array.isArray(r.data)) {
           setOrders(r.data);
           setTotalPages(1);
@@ -96,12 +54,20 @@ export default function MyOrders() {
           setTotalRecords(r.data?.totalRecords || 0);
         }
       })
-      .catch((e) => {
-        console.error("[MyOrders]", e);
-        setError(e.response?.data?.message || e.message || "Gagal memuat transaksi");
-      })
+      .catch((e) => setError(e.response?.data?.message || e.message || "Gagal memuat laporan"))
       .finally(() => setLoading(false));
   }, [status, search, page]);
+
+  // Summary dihitung dari orders yg ke-load di page ini. Total record-nya
+  // akurat dari backend (totalRecords), tapi nominal jumlahnya hanya page ini.
+  const summary = useMemo(() => {
+    let done = 0, cancelled = 0, totalDone = 0;
+    orders.forEach((o) => {
+      if (o.status === "Selesai") { done++; totalDone += Number(o.total || 0); }
+      else if (o.status === "Dibatalkan") { cancelled++; }
+    });
+    return { done, cancelled, totalDone };
+  }, [orders]);
 
   const applySearch = (e) => {
     e?.preventDefault();
@@ -109,10 +75,7 @@ export default function MyOrders() {
     setSearch(searchInput.trim());
   };
 
-  const changeStatus = (newStatus) => {
-    setPage(1);
-    setStatus(newStatus);
-  };
+  const changeStatus = (v) => { setPage(1); setStatus(v); };
 
   return (
     <div
@@ -131,7 +94,7 @@ export default function MyOrders() {
             >
               <ArrowLeft className="w-5 h-5 text-white" />
             </button>
-            <h1 className="text-white text-base font-bold leading-[26px]">Transaksi Saya</h1>
+            <h1 className="text-white text-base font-bold leading-[26px]">Laporan</h1>
           </div>
           <div className="flex items-center gap-4">
             <button className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-sm border border-white/5 flex items-center justify-center relative">
@@ -154,6 +117,26 @@ export default function MyOrders() {
         </header>
 
         <section className="bg-[#FBF9F9] rounded-t-[20px] -mt-2 min-h-[calc(100vh-180px)] px-5 pt-[18px]">
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="bg-white rounded-2xl p-3 border border-[#F6F3F3] shadow-[0_2px_15px_rgba(0,0,0,0.03)]">
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#1F7A4D]" /> Selesai
+              </div>
+              <div className="text-[18px] font-bold text-[#1A0000] mt-1">{summary.done}</div>
+              <div className="text-[11px] text-[#B20605] font-semibold mt-0.5 truncate">
+                {rupiah(summary.totalDone)}
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl p-3 border border-[#F6F3F3] shadow-[0_2px_15px_rgba(0,0,0,0.03)]">
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                <XCircle className="w-3.5 h-3.5 text-[#B20605]" /> Dibatalkan
+              </div>
+              <div className="text-[18px] font-bold text-[#1A0000] mt-1">{summary.cancelled}</div>
+              <div className="text-[11px] text-gray-400 mt-0.5">Pesanan</div>
+            </div>
+          </div>
+
           {/* Search */}
           <form onSubmit={applySearch} role="search" className="w-full">
             <label className="relative flex w-full h-12 bg-white rounded-[10px] border border-[#F6F3F3]">
@@ -172,18 +155,16 @@ export default function MyOrders() {
             </label>
           </form>
 
-          {/* Status chips — horizontal swipe-able. Pakai snap-x untuk
-              ngunci ke chip terdekat saat di-flick di mobile. -mr-5 + pr-5
-              supaya chip terakhir tidak ke-clip oleh padding container. */}
+          {/* Tabs */}
           <div
-            className="flex gap-2 overflow-x-auto scrollbar-hide mt-4 -mx-1 px-1 -mr-5 pr-5 snap-x"
+            className="flex gap-2 overflow-x-auto scrollbar-hide mt-4 -mx-1 px-1 snap-x"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
-            {STATUS_OPTIONS.map((opt) => {
+            {STATUS_TABS.map((opt) => {
               const active = status === opt.value;
               return (
                 <button
-                  key={opt.value || "all"}
+                  key={opt.value}
                   onClick={() => changeStatus(opt.value)}
                   className={`shrink-0 snap-start px-4 py-2 rounded-full text-[12px] font-semibold border whitespace-nowrap ${
                     active
@@ -200,14 +181,14 @@ export default function MyOrders() {
           {/* Result meta */}
           {!loading && !error && (
             <div className="text-[11px] text-gray-500 mt-3">
-              {totalRecords} transaksi {status && `· Status: ${status}`} {search && `· "${search}"`}
+              {totalRecords} transaksi {search && `· "${search}"`}
             </div>
           )}
 
           {/* List */}
           <div className="mt-3 space-y-3">
             {loading && (
-              <div className="text-center text-gray-400 py-12 text-sm">Memuat transaksi...</div>
+              <div className="text-center text-gray-400 py-12 text-sm">Memuat laporan...</div>
             )}
             {!loading && error && (
               <div className="text-center text-red-600 py-12 text-sm">{error}</div>
@@ -220,58 +201,44 @@ export default function MyOrders() {
 
             {!loading &&
               orders.map((o) => {
-                const isShipped = o.status === "Dikirim";
-                const chipStyle = isShipped
+                const isDone = o.status === "Selesai";
+                const chipStyle = isDone
                   ? "bg-[#E6F4EA] text-[#1F7A4D]"
-                  : "bg-[#FFF0E6] text-[#E87B1E]";
+                  : "bg-[#FFE6E6] text-[#B20605]";
                 return (
-                  <div
+                  <button
                     key={o.id}
-                    className="w-full bg-white rounded-2xl p-4 shadow-[0_2px_15px_rgba(0,0,0,0.03)] border border-[#F6F3F3]"
+                    onClick={() => navigate(`/success/${o.id}`)}
+                    className="w-full bg-white rounded-2xl p-4 shadow-[0_2px_15px_rgba(0,0,0,0.03)] border border-[#F6F3F3] text-left"
                   >
-                    <button
-                      onClick={() => navigate(`/success/${o.id}`)}
-                      className="w-full text-left"
-                    >
-                      <div className="flex justify-between items-start pb-3 border-b border-gray-100 border-dashed mb-3">
-                        <div className="min-w-0 flex-1 pr-2">
-                          <p className="font-bold text-[#1A0000] text-[15px] truncate">
-                            {o.orderNumber}
-                          </p>
-                          <p className="text-gray-400 text-[11px] mt-0.5">
-                            {new Date(o.createdAt).toLocaleString("id-ID")}
-                          </p>
-                        </div>
-                        <div className={`${chipStyle} px-3 py-1.5 rounded-full text-[11px] font-semibold shrink-0`}>
-                          {o.status}
-                        </div>
+                    <div className="flex justify-between items-start pb-3 border-b border-gray-100 border-dashed mb-3">
+                      <div className="min-w-0 flex-1 pr-2">
+                        <p className="font-bold text-[#1A0000] text-[15px] truncate">
+                          {o.orderNumber}
+                        </p>
+                        <p className="text-gray-400 text-[11px] mt-0.5">
+                          {new Date(o.createdAt).toLocaleString("id-ID")}
+                        </p>
                       </div>
-
-                      <div className="space-y-2 text-[13px]">
-                        <Row label="Jumlah Produk" value={`${o.items.length} produk`} />
-                        <Row
-                          label="Total Item"
-                          value={`${o.items.reduce((s, i) => s + i.quantity, 0)} pcs`}
-                        />
-                        <div className="flex justify-between items-center pt-1">
-                          <span className="text-gray-500">Total</span>
-                          <span className="text-[#B20605] font-bold text-[15px]">
-                            {rupiah(o.total)}
-                          </span>
-                        </div>
+                      <div className={`${chipStyle} px-3 py-1.5 rounded-full text-[11px] font-semibold shrink-0`}>
+                        {o.status}
                       </div>
-                    </button>
+                    </div>
 
-                    {isShipped && (
-                      <button
-                        onClick={() => finishOrder(o.id)}
-                        disabled={finishingId === o.id}
-                        className="mt-3 w-full bg-[#1F7A4D] hover:bg-[#175e3a] disabled:opacity-60 text-white text-[13px] font-semibold py-2.5 rounded-xl transition"
-                      >
-                        {finishingId === o.id ? "Memproses…" : "Selesai"}
-                      </button>
-                    )}
-                  </div>
+                    <div className="space-y-2 text-[13px]">
+                      <Row label="Jumlah Produk" value={`${o.items.length} produk`} />
+                      <Row
+                        label="Total Item"
+                        value={`${o.items.reduce((s, i) => s + i.quantity, 0)} pcs`}
+                      />
+                      <div className="flex justify-between items-center pt-1">
+                        <span className="text-gray-500">Total</span>
+                        <span className={`font-bold text-[15px] ${isDone ? "text-[#B20605]" : "text-gray-400 line-through"}`}>
+                          {rupiah(o.total)}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
                 );
               })}
           </div>
@@ -287,27 +254,21 @@ export default function MyOrders() {
               >
                 <ChevronLeft className="w-4 h-4 text-[#1A0000]" />
               </button>
-
               {buildPageNumbers(page, totalPages).map((p, idx) =>
                 p === "…" ? (
-                  <span key={`gap-${idx}`} className="text-gray-400 text-sm px-1">
-                    …
-                  </span>
+                  <span key={`gap-${idx}`} className="text-gray-400 text-sm px-1">…</span>
                 ) : (
                   <button
                     key={p}
                     onClick={() => setPage(p)}
                     className={`min-w-[36px] h-9 px-3 rounded-full text-sm font-semibold ${
-                      p === page
-                        ? "bg-[#B20605] text-white"
-                        : "bg-white text-[#1A0000] border border-[#F6F3F3]"
+                      p === page ? "bg-[#B20605] text-white" : "bg-white text-[#1A0000] border border-[#F6F3F3]"
                     }`}
                   >
                     {p}
                   </button>
                 )
               )}
-
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
@@ -335,15 +296,10 @@ function Row({ label, value }) {
   );
 }
 
-// Returns array like [1, "…", 4, 5, 6, "…", 12]
 function buildPageNumbers(current, total) {
   if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
-
   const pages = new Set([1, total, current, current - 1, current + 1]);
-  const sorted = Array.from(pages)
-    .filter((p) => p >= 1 && p <= total)
-    .sort((a, b) => a - b);
-
+  const sorted = Array.from(pages).filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
   const result = [];
   for (let i = 0; i < sorted.length; i++) {
     if (i > 0 && sorted[i] - sorted[i - 1] > 1) result.push("…");

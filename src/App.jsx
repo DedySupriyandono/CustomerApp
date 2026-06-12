@@ -20,6 +20,7 @@ import ServiceDetail from "./pages/ServiceDetail";
 import OrderSuccess from "./pages/OrderSuccess";
 import Invoice from "./pages/Invoice";
 import MyOrders from "./pages/MyOrders";
+import Reports from "./pages/Reports";
 import ReturnRequest from "./pages/ReturnRequest";
 import InstallPrompt from "./components/InstallPrompt";
 import ReviewForm from "./pages/ReviewForm";
@@ -112,6 +113,7 @@ export default function App() {
                 <Route path="/return/new/:orderId" element={<RequireAuth><ReturnRequest /></RequireAuth>} />
                 <Route path="/review/:orderId" element={<RequireAuth><ReviewForm /></RequireAuth>} />
                 <Route path="/orders" element={<RequireAuth><MyOrders /></RequireAuth>} />
+                <Route path="/reports" element={<RequireAuth><Reports /></RequireAuth>} />
                 <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
 
                 {/* Sales portal */}
