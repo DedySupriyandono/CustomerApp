@@ -2,41 +2,22 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Bell, ShoppingCart, Camera, X, Trash2, Scan,
+  ChevronDown, ChevronUp, Plus, Package,
 } from "lucide-react";
+import { Html5Qrcode } from "html5-qrcode";
 import api from "../api/api";
 import BottomNav from "../components/BottomNav";
 import { useCart } from "../contexts/CartContext";
 import { rupiah } from "../utils/format";
 
-// Load html5-qrcode dari CDN sekali per session.
-function ensureHtml5QrcodeLoaded() {
-  return new Promise((resolve, reject) => {
-    if (typeof window === "undefined") return reject("no window");
-    if (window.Html5Qrcode) return resolve(window.Html5Qrcode);
-    const existing = document.querySelector('script[data-html5-qrcode]');
-    if (existing) {
-      existing.addEventListener("load", () => resolve(window.Html5Qrcode));
-      existing.addEventListener("error", () => reject(new Error("script error")));
-      return;
-    }
-    const s = document.createElement("script");
-    s.src = "https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js";
-    s.async = true;
-    s.dataset.html5Qrcode = "1";
-    s.onload = () => resolve(window.Html5Qrcode);
-    s.onerror = () => reject(new Error("Gagal load html5-qrcode"));
-    document.head.appendChild(s);
-  });
-}
-
 export default function Sell() {
   const navigate = useNavigate();
   const { totalItems } = useCart();
 
-  const [cart, setCart] = useState([]);         // [{qr, productId, productName, unitPrice}]
+  const [cart, setCart] = useState([]); // [{qr, productId, productName, unitPrice}]
   const [manualQr, setManualQr] = useState("");
   const [statusMsg, setStatusMsg] = useState("");
-  const [statusKind, setStatusKind] = useState(""); // ok | err
+  const [statusKind, setStatusKind] = useState("");
   const [busy, setBusy] = useState(false);
   const [camOn, setCamOn] = useState(false);
 
@@ -44,10 +25,26 @@ export default function Sell() {
   const [buyerPhone, setBuyerPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const [stock, setStock] = useState({ totalQty: 0, groups: [] });
+  const [stockLoading, setStockLoading] = useState(true);
+  const [stockErr, setStockErr] = useState("");
+  const [expanded, setExpanded] = useState({}); // productId → true
+
   const scannerRef = useRef(null);
   const lastDecoded = useRef({ code: "", at: 0 });
 
+  const loadStock = () => {
+    setStockLoading(true);
+    setStockErr("");
+    api
+      .get("/customer/sell/stock")
+      .then((r) => setStock(r.data || { totalQty: 0, groups: [] }))
+      .catch((e) => setStockErr(e.response?.data?.message || "Gagal memuat stok"))
+      .finally(() => setStockLoading(false));
+  };
+
   useEffect(() => {
+    loadStock();
     return () => {
       try { if (scannerRef.current) scannerRef.current.stop().catch(() => {}); } catch (e) {}
     };
@@ -117,12 +114,39 @@ export default function Sell() {
     setCart((prev) => prev.map((x) => (x.qr === qr ? { ...x, unitPrice: num } : x)));
   }
 
+  // Tambah SN dari stock list — sama jalur dgn scan, tanpa hit /check
+  // (stock sudah pasti Available karena baru di-load).
+  function addFromStock(sn, group) {
+    if (cart.some((x) => x.qr === sn)) {
+      setStatusKind("err");
+      setStatusMsg(`SN ${sn} sudah di keranjang.`);
+      return;
+    }
+    setCart((prev) => [...prev, {
+      qr: sn, productId: group.productId,
+      productName: group.productName || `Product #${group.productId}`,
+      productNumber: group.productNumber,
+      unitPrice: Number(group.unitPrice || 0),
+    }]);
+    setStatusKind("ok");
+    setStatusMsg(`✓ ${sn} ditambah.`);
+    beep(true);
+  }
+
   const cartTotal = cart.reduce((s, x) => s + Number(x.unitPrice || 0), 0);
 
+  // Camera flow.
+  // Penting: setCamOn(true) DULU supaya div #sell-reader visible saat
+  // scanner.start() attach <video>. Kalau div masih display:none, mobile
+  // browser bisa pause/freeze stream.
   async function startCamera() {
+    if (camOn) return;
+    setStatusKind("");
     setStatusMsg("Memuat kamera…");
+    setCamOn(true);
+    // tunggu 1 tick supaya div ke-render visible.
+    await new Promise((r) => setTimeout(r, 50));
     try {
-      const Html5Qrcode = await ensureHtml5QrcodeLoaded();
       const scanner = new Html5Qrcode("sell-reader");
       scannerRef.current = scanner;
       await scanner.start(
@@ -131,10 +155,10 @@ export default function Sell() {
         (decoded) => tryAdd(decoded),
         () => {}
       );
-      setCamOn(true);
       setStatusMsg("Arahkan ke QR / barcode…");
     } catch (e) {
-      setStatusMsg("Kamera gagal: " + (e.message || e));
+      setStatusKind("err");
+      setStatusMsg("Kamera gagal: " + (e?.message || e || "izin ditolak"));
       setCamOn(false);
     }
   }
@@ -142,14 +166,16 @@ export default function Sell() {
   async function stopCamera() {
     if (scannerRef.current) {
       try { await scannerRef.current.stop(); } catch (e) {}
+      try { await scannerRef.current.clear(); } catch (e) {}
       scannerRef.current = null;
     }
     setCamOn(false);
+    setStatusMsg("");
   }
 
   async function submit() {
     if (cart.length === 0) {
-      alert("Keranjang kosong. Scan/ketik SN dulu.");
+      alert("Keranjang kosong. Scan/tap SN dari stok dulu.");
       return;
     }
     if (!window.confirm(`Konfirmasi jual ${cart.length} item senilai ${rupiah(cartTotal)}?`)) return;
@@ -165,6 +191,7 @@ export default function Sell() {
         alert(`${r.data.message}\nTotal: ${rupiah(r.data.totalAmount)}`);
         setCart([]); setBuyerName(""); setBuyerPhone("");
         setStatusKind(""); setStatusMsg("");
+        loadStock(); // refresh — yang baru ke-jual hilang dari list
       } else {
         alert(r.data?.message || "Gagal menjual.");
       }
@@ -237,9 +264,15 @@ export default function Sell() {
                 </button>
               )}
             </div>
+            {/* Reader div selalu di-render. width 0 saat off supaya layout
+                stabil, tapi tetap di-DOM (html5-qrcode butuh elemen exist). */}
             <div
               id="sell-reader"
-              style={{ width: "100%", maxWidth: 360, display: camOn ? "block" : "none" }}
+              style={{
+                width: "100%", maxWidth: 360,
+                minHeight: camOn ? 220 : 0,
+                display: camOn ? "block" : "none",
+              }}
             />
             <div className="mt-2 flex gap-2">
               <input
@@ -269,6 +302,84 @@ export default function Sell() {
             )}
           </div>
 
+          {/* Stok Saya */}
+          <div className="bg-white rounded-2xl p-4 border border-[#F6F3F3] shadow-[0_2px_15px_rgba(0,0,0,0.03)] mb-3">
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-bold text-[#1A0000] text-[14px] flex items-center gap-1.5">
+                <Package className="w-4 h-4 text-[#B20605]" /> Stok Saya
+              </div>
+              <div className="text-[12px] text-gray-500">{stock.totalQty} unit</div>
+            </div>
+            {stockLoading && <div className="text-[12px] text-gray-400 text-center py-4">Memuat stok…</div>}
+            {!stockLoading && stockErr && (
+              <div className="text-[12px] text-red-600 text-center py-4">{stockErr}</div>
+            )}
+            {!stockLoading && !stockErr && stock.groups.length === 0 && (
+              <div className="text-[12px] text-gray-400 text-center py-6">
+                Belum ada stok. Selesaikan order pengiriman dulu untuk dapat stok.
+              </div>
+            )}
+            <ul className="divide-y divide-gray-100">
+              {stock.groups.map((g) => {
+                const isOpen = !!expanded[g.productId];
+                return (
+                  <li key={g.productId} className="py-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setExpanded((p) => ({ ...p, [g.productId]: !p[g.productId] }))}
+                      className="w-full flex items-center justify-between text-left"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] font-semibold text-[#1A0000] truncate">
+                          {g.productName || `Product #${g.productId}`}
+                        </div>
+                        <div className="text-[11px] text-gray-500">
+                          {g.qty} unit · {rupiah(g.unitPrice)} / unit
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="bg-[#FFF0E6] text-[#E87B1E] text-[11px] font-bold px-2 py-0.5 rounded-full">
+                          {g.qty}
+                        </span>
+                        {isOpen ? (
+                          <ChevronUp className="w-4 h-4 text-gray-400" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        )}
+                      </div>
+                    </button>
+                    {isOpen && (
+                      <ul className="mt-2 space-y-1.5 pl-2">
+                        {g.items.map((it) => {
+                          const inCart = cart.some((c) => c.qr === it.sn);
+                          return (
+                            <li
+                              key={it.sn}
+                              className="flex items-center justify-between gap-2 bg-[#FBF9F9] rounded-lg px-2.5 py-1.5"
+                            >
+                              <code className="text-[11px] text-[#B20605] truncate flex-1">{it.sn}</code>
+                              <button
+                                onClick={() => addFromStock(it.sn, g)}
+                                disabled={inCart}
+                                className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md shrink-0 ${
+                                  inCart
+                                    ? "bg-gray-100 text-gray-400"
+                                    : "bg-[#1F7A4D] text-white"
+                                }`}
+                              >
+                                <Plus className="w-3 h-3" /> {inCart ? "Sudah" : "Jual"}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
           {/* Cart */}
           <div className="bg-white rounded-2xl p-4 border border-[#F6F3F3] shadow-[0_2px_15px_rgba(0,0,0,0.03)] mb-3">
             <div className="flex items-center justify-between mb-3">
@@ -277,7 +388,7 @@ export default function Sell() {
             </div>
             {cart.length === 0 ? (
               <div className="text-[12px] text-gray-400 text-center py-4">
-                Belum ada item. Scan QR / SN dari stok Anda.
+                Belum ada item. Scan QR / tap dari Stok Saya di atas.
               </div>
             ) : (
               <ul className="divide-y divide-gray-100">
