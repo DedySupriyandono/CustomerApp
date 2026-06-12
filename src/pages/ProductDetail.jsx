@@ -344,14 +344,6 @@ export default function ProductDetail() {
             <div className="font-bold text-[#1A0000] text-[16px]">{rupiah(subtotal)}</div>
           )}
         </div>
-        <button
-          onClick={handleAddToCart}
-          disabled={effectiveQty === 0}
-          className="bg-[linear-gradient(136deg,rgba(254,159,159,1)_0%,rgba(178,6,5,1)_100%)] text-white font-semibold px-6 py-3 rounded-full shadow-lg disabled:opacity-50 flex items-center gap-2"
-        >
-          <ShoppingCart className="w-4 h-4" />
-          + Keranjang
-        </button>
       </div>
     </div>
   );
