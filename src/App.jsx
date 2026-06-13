@@ -14,6 +14,7 @@ import Home from "./pages/Home";
 import Catalog from "./pages/Catalog";
 import OrderProducts from "./pages/OrderProducts";
 import ProductDetail from "./pages/ProductDetail";
+import CatalogProductDetail from "./pages/CatalogProductDetail";
 import Checkout from "./pages/Checkout";
 import Services from "./pages/Services";
 import ServiceDetail from "./pages/ServiceDetail";
@@ -106,6 +107,7 @@ export default function App() {
                 <Route path="/catalog" element={<RequireAuth><Catalog /></RequireAuth>} />
                 <Route path="/order" element={<RequireAuth><OrderProducts /></RequireAuth>} />
                 <Route path="/product/:uid" element={<RequireAuth><ProductDetail /></RequireAuth>} />
+                <Route path="/catalog/product/:uid" element={<RequireAuth><CatalogProductDetail /></RequireAuth>} />
                 <Route path="/checkout" element={<RequireAuth><Checkout /></RequireAuth>} />
                 <Route path="/services" element={<RequireAuth><Services /></RequireAuth>} />
                 <Route path="/services/:uid" element={<RequireAuth><ServiceDetail /></RequireAuth>} />

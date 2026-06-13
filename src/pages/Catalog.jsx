@@ -131,7 +131,7 @@ export default function Catalog() {
               filtered.map((p) => (
                 <button
                   key={p.uid || p.id}
-                  onClick={() => navigate(`/product/${encodeURIComponent(p.uid)}`)}
+                  onClick={() => navigate(`/catalog/product/${encodeURIComponent(p.uid)}`)}
                   className="flex items-center justify-between pl-0 pr-5 py-3 w-full min-h-[92px] rounded-[10px] overflow-hidden border border-[#F6F3F3] bg-[linear-gradient(22deg,rgba(255,255,255,1)_0%,rgba(254,159,159,0.35)_100%)]"
                 >
                   <div className="flex items-center gap-4 flex-1 min-w-0">
