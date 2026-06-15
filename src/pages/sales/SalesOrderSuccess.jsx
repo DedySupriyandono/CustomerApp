@@ -5,6 +5,7 @@ import salesApi from "../../api/salesApi";
 import { rupiah } from "../../utils/format";
 import OrderItemsList from "../../components/OrderItemsList";
 import OrderChat from "../../components/OrderChat";
+import OrderTimeline from "../../components/OrderTimeline";
 
 export default function SalesOrderSuccess() {
   const { id } = useParams();
@@ -48,6 +49,12 @@ export default function SalesOrderSuccess() {
             <div className="bg-white rounded-2xl p-4 mt-4 shadow-[0_2px_15px_rgba(0,0,0,0.04)] border border-[#F6F3F3]">
               <h3 className="font-bold text-[14px] text-[#1A0000] mb-3">Produk ({order.items?.length || 0})</h3>
               <OrderItemsList items={order.items} orderStatus={order.status} />
+            </div>
+
+            {/* Riwayat Pesanan — sama komponen seperti customer side,
+                hanya urlPrefix beda (/sales). */}
+            <div className="mt-4">
+              <OrderTimeline orderId={order.id} apiClient={salesApi} urlPrefix="/sales" />
             </div>
 
             <button
