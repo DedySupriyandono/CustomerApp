@@ -13,12 +13,17 @@ import SalesBottomNav from "../../components/SalesBottomNav";
 import { useSalesCart } from "../../contexts/SalesCartContext";
 import { rupiah } from "../../utils/format";
 
+// Urutan flow status (sama dgn customer MyOrders):
+//   Menunggu Konfirmasi → Diproses Sales → Diproses Admin → Dipicking → Dikirim → Selesai
 const STATUS_OPTIONS = [
   { value: "", label: "Semua" },
-  { value: "Menunggu Konfirmasi", label: "Menunggu" },
-  { value: "Diproses Sales", label: "Diproses" },
+  { value: "Menunggu Konfirmasi", label: "Menunggu Konfirmasi" },
+  { value: "Diproses Sales", label: "Diproses Sales" },
+  { value: "Diproses Admin", label: "Diproses Admin" },
+  { value: "Dipicking", label: "Dipicking" },
+  { value: "Dikirim", label: "Dikirim" },
   { value: "Selesai", label: "Selesai" },
-  { value: "Dibatalkan", label: "Batal" },
+  { value: "Dibatalkan", label: "Dibatalkan" },
 ];
 
 const PAGE_SIZE = 10;
@@ -119,7 +124,12 @@ export default function SalesTransactions() {
             </label>
           </form>
 
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide mt-4 -mx-1 px-1">
+          {/* Tab chips horizontal-swipe-able — sama pattern dgn customer
+              MyOrders supaya UX konsisten antara dua portal. */}
+          <div
+            className="flex gap-2 overflow-x-auto scrollbar-hide mt-4 -mx-1 px-1 -mr-5 pr-5 snap-x"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
             {STATUS_OPTIONS.map((opt) => {
               const active = status === opt.value;
               return (
@@ -129,7 +139,7 @@ export default function SalesTransactions() {
                     setPage(1);
                     setStatus(opt.value);
                   }}
-                  className={`shrink-0 px-4 py-2 rounded-full text-[12px] font-semibold border ${
+                  className={`shrink-0 snap-start px-4 py-2 rounded-full text-[12px] font-semibold border whitespace-nowrap ${
                     active ? "bg-[#B20605] text-white border-[#B20605]" : "bg-white text-[#1A0000] border-[#F6F3F3]"
                   }`}
                 >
