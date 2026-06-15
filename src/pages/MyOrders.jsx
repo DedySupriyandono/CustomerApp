@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 import {
   ArrowLeft,
   Bell,
@@ -49,21 +50,54 @@ export default function MyOrders() {
   // Anti double-click via finishingId state.
   const finishOrder = async (orderId) => {
     if (finishingId) return;
-    if (!window.confirm("Konfirmasi semua barang sudah diterima dengan baik?")) return;
+    const confirm = await Swal.fire({
+      icon: "question",
+      title: "Selesaikan Pesanan?",
+      text: "Konfirmasi semua barang sudah diterima dengan baik.",
+      showCancelButton: true,
+      confirmButtonText: "Ya, terima",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#1F7A4D",
+      cancelButtonColor: "#6c757d",
+    });
+    if (!confirm.isConfirmed) return;
     setFinishingId(orderId);
+    Swal.fire({
+      title: "Memproses…",
+      text: "Barang sedang masuk ke stok Anda.",
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      didOpen: () => Swal.showLoading(),
+    });
     try {
       const r = await api.post("/customer/receive/confirm", { orderId });
+      Swal.close();
       if (r.data?.success) {
-        alert(r.data.message || "Pesanan diselesaikan.");
-        // Refresh list
+        await Swal.fire({
+          icon: "success",
+          title: "Berhasil",
+          text: r.data.message || "Pesanan diselesaikan.",
+          confirmButtonColor: "#1F7A4D",
+        });
         setOrders((prev) =>
           prev.map((o) => (o.id === orderId ? { ...o, status: "Selesai" } : o))
         );
       } else {
-        alert(r.data?.message || "Gagal selesaikan pesanan.");
+        Swal.fire({
+          icon: "warning",
+          title: "Gagal",
+          text: r.data?.message || "Gagal selesaikan pesanan.",
+          confirmButtonColor: "#B20605",
+        });
       }
     } catch (e) {
-      alert(e.response?.data?.message || "Server error.");
+      Swal.close();
+      Swal.fire({
+        icon: "error",
+        title: "Server Error",
+        text: e.response?.data?.message || "Tidak bisa hubungi server.",
+        confirmButtonColor: "#B20605",
+      });
     } finally {
       setFinishingId(0);
     }

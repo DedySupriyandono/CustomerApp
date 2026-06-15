@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Bell, ShoppingCart, ChevronDown, Trash2 } from "lucide-react";
+import Swal from "sweetalert2";
 import api from "../api/api";
 import QuantityStepper from "../components/QuantityStepper";
 import { useCart } from "../contexts/CartContext";
@@ -83,7 +84,12 @@ export default function Checkout() {
   const submit = async () => {
     if (items.length === 0) return;
     if (voucher.trim() && voucherInfo && !voucherInfo.valid) {
-      alert("Voucher tidak valid. Hapus dulu atau ganti dengan kode yang benar.");
+      Swal.fire({
+        icon: "warning",
+        title: "Voucher tidak valid",
+        text: "Hapus dulu atau ganti dengan kode yang benar.",
+        confirmButtonColor: "#B20605",
+      });
       return;
     }
     setLoading(true);
@@ -115,8 +121,14 @@ export default function Checkout() {
         (typeof data === "string" ? data : null) ||
         e.message ||
         "Gagal membuat pesanan";
-      const detail = data.detail ? `\nDetail: ${data.detail}` : "";
-      alert(`Error: ${msg}${detail}\nStatus: ${e.response?.status || "—"}`);
+      const detail = data.detail ? `<div class="text-xs mt-2 text-gray-500">${data.detail}</div>` : "";
+      // Status code di-render kecil di bawah biar pesan utama yang menonjol.
+      Swal.fire({
+        icon: "error",
+        title: "Gagal Membuat Pesanan",
+        html: `<div>${msg}</div>${detail}<div class="text-xs text-gray-400 mt-2">Status: ${e.response?.status || "—"}</div>`,
+        confirmButtonColor: "#B20605",
+      });
     } finally {
       setLoading(false);
     }

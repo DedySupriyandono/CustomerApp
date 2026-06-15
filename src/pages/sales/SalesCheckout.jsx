@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Bell, ShoppingCart, ChevronDown, Trash2 } from "lucide-react";
+import Swal from "sweetalert2";
 import salesApi from "../../api/salesApi";
 import QuantityStepper from "../../components/QuantityStepper";
 import { useSalesCart } from "../../contexts/SalesCartContext";
@@ -73,10 +74,20 @@ export default function SalesCheckout() {
   const submit = async () => {
     if (items.length === 0) return;
     if (!warehouse?.id) {
-      return alert("Gudang belum dipilih. Kembali ke halaman produk untuk pilih gudang.");
+      return Swal.fire({
+        icon: "warning",
+        title: "Gudang belum dipilih",
+        text: "Kembali ke halaman produk untuk pilih gudang.",
+        confirmButtonColor: "#B20605",
+      });
     }
     if (voucher.trim() && voucherInfo && !voucherInfo.valid) {
-      return alert("Voucher tidak valid. Hapus atau perbaiki.");
+      return Swal.fire({
+        icon: "warning",
+        title: "Voucher tidak valid",
+        text: "Hapus atau perbaiki kode voucher.",
+        confirmButtonColor: "#B20605",
+      });
     }
     setLoading(true);
     try {
@@ -101,8 +112,13 @@ export default function SalesCheckout() {
       console.error("[SalesCheckout] error response:", e.response?.data);
       const data = e.response?.data || {};
       const msg = data.message || e.message || "Gagal membuat order";
-      const detail = data.detail ? `\nDetail: ${data.detail}` : "";
-      alert(`Error: ${msg}${detail}\nStatus: ${e.response?.status || "—"}`);
+      const detail = data.detail ? `<div class="text-xs mt-2 text-gray-500">${data.detail}</div>` : "";
+      Swal.fire({
+        icon: "error",
+        title: "Gagal Membuat Order",
+        html: `<div>${msg}</div>${detail}<div class="text-xs text-gray-400 mt-2">Status: ${e.response?.status || "—"}</div>`,
+        confirmButtonColor: "#B20605",
+      });
     } finally {
       setLoading(false);
     }
