@@ -53,13 +53,22 @@ export function SalesCartProvider({ children }) {
     });
   };
 
+  // Merge SN baru ke entry existing (dedup), bukan replace.
   const addSerial = (p, serials) => {
     setItems((prev) => {
-      const others = prev.filter(
-        (i) => !(i.productId === p.id && i.serials && i.serials.length > 0)
+      if (!serials || serials.length === 0) return prev;
+      const idx = prev.findIndex(
+        (i) => i.productId === p.id && i.serials && i.serials.length > 0
       );
-      if (!serials || serials.length === 0) return others;
-      return [...others, buildEntry(p, serials.length, serials)];
+      if (idx >= 0) {
+        const existing = prev[idx];
+        const existingSet = new Set(existing.serials);
+        const merged = [...existing.serials, ...serials.filter((s) => !existingSet.has(s))];
+        const next = [...prev];
+        next[idx] = { ...existing, serials: merged, quantity: merged.length };
+        return next;
+      }
+      return [...prev, buildEntry(p, serials.length, serials)];
     });
   };
 

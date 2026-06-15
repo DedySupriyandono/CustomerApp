@@ -368,7 +368,7 @@ export default function Checkout() {
             </div>
           )}
           <button
-            onClick={() => navigate("/catalog")}
+            onClick={() => navigate("/order")}
             className="w-full text-primary font-semibold text-sm py-2 mt-2"
           >
             + Tambah Pesanan

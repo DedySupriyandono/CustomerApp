@@ -97,13 +97,24 @@ export function CartProvider({ children }) {
     });
   };
 
+  // Tambah SN ke keranjang. Kalau product sudah ada entry SN-nya di cart,
+  // MERGE SN baru ke daftar existing (dedup) — bukan replace. Sebelumnya
+  // user yang add 3 SN lalu add 4 SN lagi → 3 yang lama hilang.
   const addSerial = (product, serials) => {
     setItems((prev) => {
-      const others = prev.filter(
-        (i) => !(i.productId === product.id && i.serials && i.serials.length > 0)
+      if (!serials || serials.length === 0) return prev;
+      const idx = prev.findIndex(
+        (i) => i.productId === product.id && i.serials && i.serials.length > 0
       );
-      if (!serials || serials.length === 0) return others;
-      return [...others, buildEntry(product, serials.length, serials)];
+      if (idx >= 0) {
+        const existing = prev[idx];
+        const existingSet = new Set(existing.serials);
+        const merged = [...existing.serials, ...serials.filter((s) => !existingSet.has(s))];
+        const next = [...prev];
+        next[idx] = { ...existing, serials: merged, quantity: merged.length };
+        return next;
+      }
+      return [...prev, buildEntry(product, serials.length, serials)];
     });
   };
 
