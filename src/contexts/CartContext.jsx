@@ -97,24 +97,18 @@ export function CartProvider({ children }) {
     });
   };
 
-  // Tambah SN ke keranjang. Kalau product sudah ada entry SN-nya di cart,
-  // MERGE SN baru ke daftar existing (dedup) — bukan replace. Sebelumnya
-  // user yang add 3 SN lalu add 4 SN lagi → 3 yang lama hilang.
+  // Sync SN keranjang ke daftar `serials` yang di-submit dari ProductDetail.
+  // ProductDetail pre-fill checkbox-nya dari cart (lihat ProductDetail.jsx),
+  // jadi user lihat apa yang sudah ada + bisa centang/uncheck. Submit =
+  // REPLACE cart dgn exact list yg dicentang sekarang. Kalau serials kosong,
+  // entry ke-remove.
   const addSerial = (product, serials) => {
     setItems((prev) => {
-      if (!serials || serials.length === 0) return prev;
-      const idx = prev.findIndex(
-        (i) => i.productId === product.id && i.serials && i.serials.length > 0
+      const others = prev.filter(
+        (i) => !(i.productId === product.id && i.serials && i.serials.length > 0)
       );
-      if (idx >= 0) {
-        const existing = prev[idx];
-        const existingSet = new Set(existing.serials);
-        const merged = [...existing.serials, ...serials.filter((s) => !existingSet.has(s))];
-        const next = [...prev];
-        next[idx] = { ...existing, serials: merged, quantity: merged.length };
-        return next;
-      }
-      return [...prev, buildEntry(product, serials.length, serials)];
+      if (!serials || serials.length === 0) return others;
+      return [...others, buildEntry(product, serials.length, serials)];
     });
   };
 

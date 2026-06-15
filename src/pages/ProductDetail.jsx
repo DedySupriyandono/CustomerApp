@@ -35,6 +35,30 @@ export default function ProductDetail() {
       .finally(() => setLoading(false));
   }, [uid]);
 
+  // Pre-fill state dari cart kalau produk ini sudah ada di keranjang.
+  //   - Kartu Perdana: checkbox SN ter-pre-check sesuai yang sudah di-cart.
+  //   - Voucher / non-SN: qty stepper di-set ke nilai cart (bukan default 1).
+  // Tanpa ini, user yang revisit detail page setelah add ke cart akan
+  // kaget — selalu reset ke default. Submit (REPLACE) jadi salah karena
+  // user lupa adjust ulang.
+  useEffect(() => {
+    if (!data?.id) return;
+    const inCartSn = items.find(
+      (i) => i.productId === data.id && i.serials && i.serials.length > 0
+    );
+    if (inCartSn && inCartSn.serials.length > 0) {
+      setSelectedSerials(inCartSn.serials);
+      return;
+    }
+    const inCartQty = items.find(
+      (i) => i.productId === data.id && (!i.serials || i.serials.length === 0)
+    );
+    if (inCartQty && inCartQty.quantity > 0) {
+      setQtyLocal(inCartQty.quantity);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.id]);
+
   const isKartuPerdana = useMemo(
     () => data?.category?.toLowerCase().includes("kartu perdana"),
     [data]

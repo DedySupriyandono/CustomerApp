@@ -11,7 +11,7 @@ import { describePromos, lineWithPromo, promoLabel } from "../../utils/promo";
 export default function SalesProductDetail() {
   const { uid } = useParams();
   const navigate = useNavigate();
-  const { setQty, addSerial, totalItems, warehouse } = useSalesCart();
+  const { items: cartItems, setQty, addSerial, totalItems, warehouse } = useSalesCart();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -38,6 +38,27 @@ export default function SalesProductDetail() {
     () => data?.category?.toLowerCase().includes("kartu perdana"),
     [data]
   );
+
+  // Pre-fill state dari cart:
+  //   - Kartu Perdana: checkbox SN sesuai yg sudah di-cart.
+  //   - Voucher / non-SN: qty stepper sesuai cart (bukan default 1).
+  useEffect(() => {
+    if (!data?.id) return;
+    const inCartSn = (cartItems || []).find(
+      (i) => i.productId === data.id && i.serials && i.serials.length > 0
+    );
+    if (inCartSn && inCartSn.serials.length > 0) {
+      setSelectedSerials(inCartSn.serials);
+      return;
+    }
+    const inCartQty = (cartItems || []).find(
+      (i) => i.productId === data.id && (!i.serials || i.serials.length === 0)
+    );
+    if (inCartQty && inCartQty.quantity > 0) {
+      setQtyLocal(inCartQty.quantity);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.id]);
   const stock = data?.stock ?? 0;
   const price = data?.price ?? 0;
   const effectiveQty = isKartuPerdana ? selectedSerials.length : qty;

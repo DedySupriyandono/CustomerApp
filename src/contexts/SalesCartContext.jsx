@@ -53,22 +53,16 @@ export function SalesCartProvider({ children }) {
     });
   };
 
-  // Merge SN baru ke entry existing (dedup), bukan replace.
+  // Sync SN ke list serials yg di-submit (REPLACE). ProductDetail pre-fill
+  // checkbox dari cart supaya user lihat apa yang sudah ditambah sebelumnya
+  // dan tinggal centang lagi yang baru.
   const addSerial = (p, serials) => {
     setItems((prev) => {
-      if (!serials || serials.length === 0) return prev;
-      const idx = prev.findIndex(
-        (i) => i.productId === p.id && i.serials && i.serials.length > 0
+      const others = prev.filter(
+        (i) => !(i.productId === p.id && i.serials && i.serials.length > 0)
       );
-      if (idx >= 0) {
-        const existing = prev[idx];
-        const existingSet = new Set(existing.serials);
-        const merged = [...existing.serials, ...serials.filter((s) => !existingSet.has(s))];
-        const next = [...prev];
-        next[idx] = { ...existing, serials: merged, quantity: merged.length };
-        return next;
-      }
-      return [...prev, buildEntry(p, serials.length, serials)];
+      if (!serials || serials.length === 0) return others;
+      return [...others, buildEntry(p, serials.length, serials)];
     });
   };
 
