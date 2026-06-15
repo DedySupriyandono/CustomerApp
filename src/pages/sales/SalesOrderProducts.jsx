@@ -19,16 +19,26 @@ export default function SalesOrderProducts() {
   const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
-    // Load list warehouse 1x — picker pakai data ini.
+    // Load list warehouse 1x. Backend filter ke warehouse_id sales login,
+    // jadi list ini biasanya cuma 1 item → auto-pick. Picker tetap di-render
+    // (tombol Ubah di-disabled) supaya feature gampang dibuka kembali nanti.
     salesApi.get("/sales/warehouses")
       .then((r) => setWarehouses(Array.isArray(r.data) ? r.data : []))
       .catch(() => setWarehouses([]));
   }, []);
 
-  // Auto-open picker kalau belum ada warehouse terpilih.
+  // Auto-pick warehouse sales login. Kalau cuma 1 (kasus normal locked),
+  // langsung set tanpa buka picker. Kalau >1 (sales tanpa warehouse_id),
+  // baru buka picker.
   useEffect(() => {
-    if (!warehouse) setPickerOpen(true);
-  }, [warehouse]);
+    if (warehouse) return;
+    if (warehouses.length === 1) {
+      setWarehouse(warehouses[0]);
+    } else if (warehouses.length > 1) {
+      setPickerOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [warehouses]);
 
   // Fetch products tergantung warehouse — kalau belum dipilih, tampilkan empty state.
   useEffect(() => {
@@ -112,10 +122,12 @@ export default function SalesOrderProducts() {
 
         <section className="bg-[#FBF9F9] rounded-t-[20px] -mt-2 min-h-[calc(100vh-180px)] px-5 pt-[18px]">
           {/* Warehouse picker chip — selalu tampil di atas. Klik = buka picker. */}
-          <button
-            type="button"
-            onClick={() => setPickerOpen(true)}
-            className="flex items-center justify-between gap-3 w-full mb-4 px-4 py-3 rounded-[10px] bg-white border border-[#F6F3F3] shadow-sm"
+          {/* Tombol Ubah gudang DISABLED — sales locked ke warehouse login.
+              Untuk buka kembali: ganti div ke button + setPickerOpen(true)
+              di onClick + un-comment tombol Ubah. */}
+          <div
+            className="flex items-center justify-between gap-3 w-full mb-4 px-4 py-3 rounded-[10px] bg-white border border-[#F6F3F3] shadow-sm opacity-90"
+            aria-disabled="true"
           >
             <span className="flex items-center gap-3 text-left min-w-0">
               <span className="w-9 h-9 rounded-full bg-[#FFF5F5] flex items-center justify-center shrink-0">
@@ -124,12 +136,13 @@ export default function SalesOrderProducts() {
               <span className="flex flex-col min-w-0">
                 <span className="text-[11px] text-[#606060] leading-tight">Gudang</span>
                 <span className="text-[14px] font-bold text-[#1A0000] truncate">
-                  {warehouse?.name || "Pilih gudang dulu"}
+                  {warehouse?.name || "Memuat..."}
                 </span>
               </span>
             </span>
-            <span className="text-[#B20605] text-xs font-semibold">Ubah</span>
-          </button>
+            {/* <span className="text-[#B20605] text-xs font-semibold">Ubah</span> */}
+            <span className="text-[#9CA3AF] text-xs font-medium">Terkunci</span>
+          </div>
 
           <form onSubmit={(e) => e.preventDefault()} className="flex items-center gap-4 w-full">
             <label className="relative flex-1 h-12 bg-white rounded-[10px] border border-[#F6F3F3]">

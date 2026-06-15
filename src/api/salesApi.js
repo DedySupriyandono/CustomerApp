@@ -10,7 +10,9 @@ const salesApi = axios.create({ baseURL });
 
 salesApi.interceptors.request.use((config) => {
   const token = localStorage.getItem("salesToken");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  // Custom scheme — backend parse prefix "G0l3d3nUat" lewat
+  // JwtBearer.OnMessageReceived dan validate sisanya sebagai JWT biasa.
+  if (token) config.headers.Authorization = `G0l3d3nUat ${token}`;
   return config;
 });
 

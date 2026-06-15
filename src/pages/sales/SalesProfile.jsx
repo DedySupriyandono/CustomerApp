@@ -108,6 +108,7 @@ export default function SalesProfile() {
                 <SectionTitle>Cabang</SectionTitle>
                 <InfoRow icon={<Building2 className="w-4 h-4" />} label="Branch" value={user.branchName} />
                 <InfoRow label="Regional" value={user.regionalName} />
+                <InfoRow label="Warehouse" value={user.warehouseName} />
               </div>
 
               {user.address && (
