@@ -16,7 +16,8 @@ import { useCart } from "../contexts/CartContext";
 import { useCustomerNotifications } from "../contexts/NotificationContext";
 import BottomNav from "../components/BottomNav";
 import { rupiah } from "../utils/format";
-import bannerImg from "../assets/banner.png";
+import HomeSlider from "../components/HomeSlider";
+import apiClient from "../api/api";
 import bagImg from "../assets/bag-mascot.png";
 
 export default function Home() {
@@ -111,17 +112,8 @@ export default function Home() {
             />
           </div>
 
-          {/* Banner */}
-          <div className="mt-5 px-5">
-            <div className="relative rounded-xl overflow-hidden aspect-[358/146] shadow-sm">
-              <img src={bannerImg} alt="Banner" className="w-full h-full object-cover" />
-            </div>
-            <div className="flex justify-center gap-1.5 mt-3">
-              <div className="w-4 h-1.5 rounded-full bg-[#B20605]" />
-              <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-              <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-            </div>
-          </div>
+          {/* Banner slider (data dari CMS via /api/customer/sliders) */}
+          <HomeSlider apiClient={apiClient} urlPrefix="/customer" />
 
           {/* Flash Sale */}
           <div className="mt-4 mx-5 bg-gradient-to-br from-[#410000] to-[#220000] rounded-[20px] p-4 relative overflow-hidden shadow-lg">

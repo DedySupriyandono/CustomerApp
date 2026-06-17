@@ -16,7 +16,7 @@ import { useSalesCart } from "../../contexts/SalesCartContext";
 import { useSalesNotifications } from "../../contexts/NotificationContext";
 import SalesBottomNav from "../../components/SalesBottomNav";
 import { rupiah } from "../../utils/format";
-import bannerImg from "../../assets/banner.png";
+import HomeSlider from "../../components/HomeSlider";
 import bagImg from "../../assets/bag-mascot.png";
 
 export default function SalesHome() {
@@ -115,17 +115,8 @@ export default function SalesHome() {
             />
           </div>
 
-          {/* Banner */}
-          <div className="mt-5 px-5">
-            <div className="relative rounded-xl overflow-hidden aspect-[358/146] shadow-sm">
-              <img src={bannerImg} alt="" className="w-full h-full object-cover" />
-            </div>
-            <div className="flex justify-center gap-1.5 mt-3">
-              <div className="w-4 h-1.5 rounded-full bg-[#B20605]" />
-              <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-              <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-            </div>
-          </div>
+          {/* Banner slider (data dari CMS via /api/sales/sliders) */}
+          <HomeSlider apiClient={salesApi} urlPrefix="/sales" />
 
           {/* Pending approvals call-out */}
           {pendingCount > 0 && (
