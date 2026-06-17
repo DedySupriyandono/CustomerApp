@@ -218,6 +218,18 @@ export default function Invoice() {
                       <div className="text-right text-[#1A0000] font-semibold self-center">
                         {rupiah(it.subtotal)}
                       </div>
+                      {/* SN list utk Voucher (qty > 1, satu CustomerOrderItem).
+                          Backend isi it.serials hanya saat order Selesai. */}
+                      {Array.isArray(it.serials) && it.serials.length > 0 && (
+                        <div className="col-span-3 mt-2 ml-1 pl-3 border-l-2 border-[#FECECE] space-y-1">
+                          {it.serials.map((sn, idx) => (
+                            <div key={`${it.productId}-${idx}`} className="flex items-center gap-1.5 text-[11px]">
+                              <Hash className="w-2.5 h-2.5 text-[#B20605] shrink-0" />
+                              <span className="font-mono text-[#1A0000] truncate">{sn}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 }

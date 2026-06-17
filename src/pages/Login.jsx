@@ -120,11 +120,6 @@ export default function Login() {
         >
           {loading ? "Memproses..." : "Masuk"}
         </button>
-
-        <p className="text-center text-[13px] text-[#606060] mt-5">
-          Belum punya akun?{" "}
-          <span className="text-[#B20605] font-bold">Daftar Sekarang</span>
-        </p>
       </form>
     </div>
   );
