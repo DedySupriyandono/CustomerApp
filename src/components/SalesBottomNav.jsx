@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   Home as HomeIcon,
   ClipboardCheck,
-  Scan,
+  ShoppingCart,
   ArrowLeftRight,
   User,
 } from "lucide-react";
@@ -18,7 +18,7 @@ export default function SalesBottomNav() {
       <Item onClick={() => navigate("/sales/approval")} icon={<ClipboardCheck className="w-6 h-6" />} label="Approval" active={active("/sales/approval")} />
       <button onClick={() => navigate("/sales/order")} className="relative flex flex-col items-center justify-end -mt-10 mb-1">
         <div className="absolute -top-12 w-[60px] h-[60px] bg-[#C11717] rounded-full flex items-center justify-center shadow-lg shadow-red-900/20 border-[4px] border-[#FAFAFA]">
-          <Scan className="w-7 h-7 text-white" />
+          <ShoppingCart className="w-7 h-7 text-white" />
         </div>
         <span className="text-[10px] font-medium text-gray-400 mt-2">Order</span>
       </button>
