@@ -106,17 +106,6 @@ export default function SalesLogin() {
         >
           {loading ? "Memproses..." : "Masuk"}
         </button>
-
-        <p className="text-center text-[13px] text-[#606060] mt-5">
-          Customer?{" "}
-          <button
-            type="button"
-            onClick={() => navigate("/login")}
-            className="text-[#B20605] font-bold"
-          >
-            Login Customer
-          </button>
-        </p>
       </form>
     </div>
   );
