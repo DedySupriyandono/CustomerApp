@@ -65,9 +65,6 @@ export default function FlashSaleSection({ apiClient, urlPrefix = "/customer", o
                 </div>
               )}
               <div className="text-[13px] font-bold text-[#E87B1E]">{rupiah(it.salePrice)}</div>
-              <div className="mt-2 bg-[#B20605] text-white text-[11px] font-semibold text-center py-1.5 rounded-full">
-                Beli Sekarang
-              </div>
             </button>
           );
         })}
