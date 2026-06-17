@@ -17,6 +17,7 @@ import { useCustomerNotifications } from "../contexts/NotificationContext";
 import BottomNav from "../components/BottomNav";
 import { rupiah } from "../utils/format";
 import HomeSlider from "../components/HomeSlider";
+import FlashSaleSection from "../components/FlashSaleSection";
 import apiClient from "../api/api";
 import bagImg from "../assets/bag-mascot.png";
 
@@ -115,25 +116,16 @@ export default function Home() {
           {/* Banner slider (data dari CMS via /api/customer/sliders) */}
           <HomeSlider apiClient={apiClient} urlPrefix="/customer" />
 
-          {/* Flash Sale */}
-          <div className="mt-4 mx-5 bg-gradient-to-br from-[#410000] to-[#220000] rounded-[20px] p-4 relative overflow-hidden shadow-lg">
-            <div className="flex justify-between items-center mb-4 relative z-10">
-              <div className="flex items-center gap-2">
-                <Flame className="w-5 h-5 text-[#FF9D00] fill-[#FF9D00]" />
-                <h2 className="text-white font-bold text-base">Flash Sale</h2>
-              </div>
-              <ChevronRight className="w-5 h-5 text-white/80" />
-            </div>
-
-            <div className="absolute -left-6 top-16 w-32 h-32 z-0">
-              <img src={bagImg} alt="Bag Mascot" className="w-full h-full object-contain" />
-            </div>
-
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide relative z-10 pl-[85px] pb-2">
-              <FlashSaleCard />
-              <FlashSaleCard />
-            </div>
-          </div>
+          {/* Flash Sale (data dari CMS via /api/customer/flash-sales) */}
+          <FlashSaleSection
+            apiClient={apiClient}
+            urlPrefix="/customer"
+            onItemClick={(it) =>
+              it.productUid
+                ? navigate(`/catalog/product/${encodeURIComponent(it.productUid)}`)
+                : null
+            }
+          />
 
           {/* Orderan Saya */}
           <div className="mt-6 px-5 mb-8">

@@ -41,24 +41,10 @@ export default function HomeSlider({ apiClient, urlPrefix = "/customer" }) {
     const src = s.imageBase64
       ? `data:${s.contentType || "image/png"};base64,${s.imageBase64}`
       : bannerImg;
+    // Title & Subtitle ada di DB sebagai metadata utk admin (label internal
+    // di /CmsSlider), tapi tidak di-overlay di banner. Gambar saja yang tampil.
     const content = (
-      <>
-        <img src={src} alt={s.title || ""} className="w-full h-full object-cover" />
-        {(s.title || s.subtitle) && (
-          <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent flex flex-col justify-end p-4">
-            {s.title && (
-              <div className="text-white font-bold text-[15px] leading-tight drop-shadow">
-                {s.title}
-              </div>
-            )}
-            {s.subtitle && (
-              <div className="text-white/85 text-[11px] mt-1 line-clamp-2 drop-shadow">
-                {s.subtitle}
-              </div>
-            )}
-          </div>
-        )}
-      </>
+      <img src={src} alt={s.title || ""} className="w-full h-full object-cover" />
     );
     return s.linkUrl ? (
       <a href={s.linkUrl} target="_blank" rel="noopener noreferrer" className="block w-full h-full">

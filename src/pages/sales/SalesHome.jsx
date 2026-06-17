@@ -17,6 +17,7 @@ import { useSalesNotifications } from "../../contexts/NotificationContext";
 import SalesBottomNav from "../../components/SalesBottomNav";
 import { rupiah } from "../../utils/format";
 import HomeSlider from "../../components/HomeSlider";
+import FlashSaleSection from "../../components/FlashSaleSection";
 import bagImg from "../../assets/bag-mascot.png";
 
 export default function SalesHome() {
@@ -117,6 +118,17 @@ export default function SalesHome() {
 
           {/* Banner slider (data dari CMS via /api/sales/sliders) */}
           <HomeSlider apiClient={salesApi} urlPrefix="/sales" />
+
+          {/* Flash Sale (data dari CMS via /api/sales/flash-sales) */}
+          <FlashSaleSection
+            apiClient={salesApi}
+            urlPrefix="/sales"
+            onItemClick={(it) =>
+              it.productUid
+                ? navigate(`/sales/product/${encodeURIComponent(it.productUid)}`)
+                : null
+            }
+          />
 
           {/* Pending approvals call-out */}
           {pendingCount > 0 && (
