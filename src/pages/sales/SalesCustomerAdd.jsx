@@ -26,6 +26,9 @@ export default function SalesCustomerAdd() {
   const [codeStatus, setCodeStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
   const [codeMessage, setCodeMessage] = useState("");
   const codeTimer = useRef(null);
+  const [phoneStatus, setPhoneStatus] = useState(null);
+  const [phoneMessage, setPhoneMessage] = useState("");
+  const phoneTimer = useRef(null);
   const [warehouses, setWarehouses] = useState([]);
   const [whLoading, setWhLoading] = useState(true);
 
@@ -47,6 +50,32 @@ export default function SalesCustomerAdd() {
   }, []);
 
   const set = (k) => (e) => setForm((s) => ({ ...s, [k]: e.target.value }));
+
+  // Real-time cek availability phone dgn debounce 500ms.
+  const onPhoneChange = (e) => {
+    const value = e.target.value.trim();
+    setForm((s) => ({ ...s, phone: value }));
+    setPhoneStatus(null);
+    setPhoneMessage("");
+    if (phoneTimer.current) clearTimeout(phoneTimer.current);
+    if (!value) return;
+    setPhoneStatus("checking");
+    phoneTimer.current = setTimeout(async () => {
+      try {
+        const r = await salesApi.get("/sales/customers/check-phone", { params: { phone: value } });
+        if (r.data?.available) {
+          setPhoneStatus("available");
+          setPhoneMessage(r.data.message || "Nomor HP tersedia.");
+        } else {
+          setPhoneStatus("taken");
+          setPhoneMessage(r.data?.message || "Nomor HP sudah dipakai.");
+        }
+      } catch {
+        setPhoneStatus(null);
+        setPhoneMessage("");
+      }
+    }, 500);
+  };
 
   // Real-time cek availability customer code dgn debounce 500ms.
   const onCodeChange = (e) => {
@@ -80,6 +109,7 @@ export default function SalesCustomerAdd() {
     if (codeStatus === "taken") { setError(codeMessage || "Customer Code sudah dipakai."); return; }
     if (!form.customerName.trim()) { setError("Nama customer wajib."); return; }
     if (!form.phone.trim()) { setError("Nomor HP wajib."); return; }
+    if (phoneStatus === "taken") { setError(phoneMessage || "Nomor HP sudah dipakai."); return; }
     if (warehouses.length > 1 && !form.warehouseId) { setError("Pilih gudang."); return; }
     setSubmitting(true);
     setError("");
@@ -89,12 +119,13 @@ export default function SalesCustomerAdd() {
         warehouseId: form.warehouseId ? Number(form.warehouseId) : null,
       };
       const r = await salesApi.post("/sales/customers", payload);
-      // Sukses → langsung ke detail customer baru.
-      if (r.data?.id) {
-        navigate(`/sales/customers/${r.data.id}`, { replace: true });
-      } else {
-        navigate("/sales/customers", { replace: true });
-      }
+      // Customer baru sekarang masuk antrian approval. Balik ke list dgn
+      // toast info — TIDAK navigate ke detail karena belum ada customer.id.
+      const msg = r.data?.message || "Pendaftaran customer terkirim, menunggu approval admin.";
+      navigate("/sales/customers", {
+        replace: true,
+        state: { toast: msg, toastVariant: "info" },
+      });
     } catch (e) {
       setError(e.response?.data?.message || e.message || "Gagal mendaftar customer");
     } finally {
@@ -158,7 +189,44 @@ export default function SalesCustomerAdd() {
 
         <Field label="Nama Customer *" value={form.customerName} onChange={set("customerName")} required maxLength={100} />
         <Field label="Contact Person"   value={form.contactPerson} onChange={set("contactPerson")} maxLength={100} />
-        <Field label="Nomor HP *"        value={form.phone}        onChange={set("phone")} required type="tel" inputMode="tel" maxLength={15} />
+
+        {/* Nomor HP dgn live check uniqueness */}
+        <label className="block">
+          <span className="text-[12px] font-semibold text-[#1A0000]">Nomor HP *</span>
+          <div className="relative">
+            <input
+              value={form.phone}
+              onChange={onPhoneChange}
+              required
+              type="tel"
+              inputMode="tel"
+              maxLength={15}
+              placeholder="08xxxxxxxxxx"
+              className={`mt-1 w-full text-sm border rounded-xl p-2.5 pr-10 focus:outline-none
+                ${phoneStatus === "taken"      ? "border-red-400 focus:border-red-500"
+                : phoneStatus === "available"  ? "border-green-400 focus:border-green-500"
+                                              : "border-[#F6F3F3] focus:border-[#B20605]"}`}
+            />
+            {phoneStatus === "checking" && (
+              <span className="absolute right-3 top-1/2 mt-0.5 -translate-y-1/2 text-[10px] text-gray-400">cek...</span>
+            )}
+            {phoneStatus === "available" && (
+              <Check className="absolute right-3 top-1/2 mt-0.5 -translate-y-1/2 w-4 h-4 text-green-600" />
+            )}
+            {phoneStatus === "taken" && (
+              <X className="absolute right-3 top-1/2 mt-0.5 -translate-y-1/2 w-4 h-4 text-red-600" />
+            )}
+          </div>
+          {phoneMessage && (
+            <div className={`text-[11px] mt-1 ${
+              phoneStatus === "taken" ? "text-red-600" :
+              phoneStatus === "available" ? "text-green-600" : "text-gray-500"
+            }`}>
+              {phoneMessage}
+            </div>
+          )}
+          <div className="text-[11px] text-gray-400 mt-0.5">Harus unik di seluruh sistem.</div>
+        </label>
         <Field label="Email"             value={form.email}        onChange={set("email")} type="email" maxLength={100} />
         <Field label="Alamat"            value={form.address1}     onChange={set("address1")} textarea rows={2} />
         <Field label="Kota"              value={form.city}         onChange={set("city")} maxLength={50} />
@@ -205,7 +273,9 @@ export default function SalesCustomerAdd() {
 
         <button
           type="submit"
-          disabled={submitting || codeStatus === "taken" || codeStatus === "checking"}
+          disabled={submitting
+            || codeStatus === "taken" || codeStatus === "checking"
+            || phoneStatus === "taken" || phoneStatus === "checking"}
           className="w-full py-3 rounded-2xl text-sm font-semibold bg-[#B20605] text-white flex items-center justify-center gap-2 disabled:bg-gray-300"
         >
           <UserPlus className="w-4 h-4" />

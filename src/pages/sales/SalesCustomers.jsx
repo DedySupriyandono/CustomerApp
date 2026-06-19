@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Search, Plus, User as UserIcon, Phone, MapPin, Clock,
+  AlertTriangle,
 } from "lucide-react";
 import salesApi from "../../api/salesApi";
 
@@ -9,11 +10,14 @@ import salesApi from "../../api/salesApi";
 // Header punya tombol "+" utk register customer baru.
 export default function SalesCustomers() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [rows, setRows] = useState([]);
+  const [pendingRegs, setPendingRegs] = useState([]);
   const [q, setQ] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [toast, setToast] = useState(location.state?.toast || "");
 
   const fetchData = (search = q, status = filterStatus) => {
     setLoading(true);
@@ -22,9 +26,21 @@ export default function SalesCustomers() {
       .then((r) => setRows(r.data || []))
       .catch((e) => setError(e.response?.data?.message || e.message))
       .finally(() => setLoading(false));
+    // Pending/rejected registrations sales — section terpisah di atas list.
+    salesApi
+      .get("/sales/registrations/pending")
+      .then((r) => setPendingRegs(r.data || []))
+      .catch(() => setPendingRegs([]));
   };
 
   useEffect(() => { fetchData(); /* eslint-disable-next-line */ }, []);
+
+  // Auto-dismiss toast setelah 4 detik.
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(""), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const onSearch = (e) => {
     e.preventDefault();
@@ -76,9 +92,60 @@ export default function SalesCustomers() {
         </select>
       </form>
 
+      {toast && (
+        <div className="mx-4 mb-2 text-[12px] text-[#1A0000] bg-[#FFF5F5] border border-[#FECECE] rounded-lg p-2.5 flex items-start gap-2">
+          <Clock className="w-4 h-4 text-[#B20605] shrink-0 mt-0.5" />
+          <span className="flex-1">{toast}</span>
+        </div>
+      )}
+
       {error && (
         <div className="mx-4 mb-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
           {error}
+        </div>
+      )}
+
+      {/* Pending Registrations — kalau ada antrian sales yg blm di-approve */}
+      {pendingRegs.length > 0 && (
+        <div className="px-4 mb-3">
+          <div className="text-[11px] uppercase tracking-wide font-bold text-[#B20605] mb-2 px-1">
+            Menunggu Approval Admin ({pendingRegs.length})
+          </div>
+          <ul className="space-y-2">
+            {pendingRegs.map((p) => (
+              <li key={p.id}
+                className={`bg-white border rounded-2xl p-3 flex items-start gap-3 ${
+                  p.status === "Rejected"
+                    ? "border-red-200"
+                    : "border-amber-200"
+                }`}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                  p.status === "Rejected" ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-700"
+                }`}>
+                  {p.status === "Rejected"
+                    ? <AlertTriangle className="w-5 h-5" />
+                    : <Clock className="w-5 h-5" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-semibold text-[#1A0000] truncate">{p.customerName}</div>
+                  <div className="text-[11px] text-gray-400 font-mono">{p.customerCode}</div>
+                  {p.phone && (
+                    <div className="text-[12px] text-gray-600 flex items-center gap-1.5 mt-0.5">
+                      <Phone className="w-3 h-3" /> {p.phone}
+                    </div>
+                  )}
+                  <div className={`text-[11px] mt-1 font-semibold ${
+                    p.status === "Rejected" ? "text-red-600" : "text-amber-700"
+                  }`}>
+                    {p.status === "Rejected" ? "❌ Ditolak admin" : "⏳ Menunggu approval"}
+                  </div>
+                  {p.approvalNotes && (
+                    <div className="text-[11px] text-gray-500 mt-0.5">"{p.approvalNotes}"</div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
