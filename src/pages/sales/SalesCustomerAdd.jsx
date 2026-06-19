@@ -1,11 +1,13 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, UserPlus, Check, X } from "lucide-react";
 import salesApi from "../../api/salesApi";
 
 // Form tambah customer baru di bawah sales login.
 // CustomerCode di-input sales (bukan auto-generate) — divalidasi unique
-// system-wide. Region/Branch/Warehouse auto dari profil sales (server-side).
+// system-wide. Region/Branch auto dari profil sales. Warehouse:
+//   - Sales locked → auto pakai gudangnya (dropdown disabled)
+//   - Sales akses multi gudang → pilih dari dropdown
 export default function SalesCustomerAdd() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
@@ -17,12 +19,32 @@ export default function SalesCustomerAdd() {
     address1: "",
     city: "",
     regency: "",
+    warehouseId: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [codeStatus, setCodeStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
   const [codeMessage, setCodeMessage] = useState("");
   const codeTimer = useRef(null);
+  const [warehouses, setWarehouses] = useState([]);
+  const [whLoading, setWhLoading] = useState(true);
+
+  // Load warehouses dari /sales/warehouses (sudah scoped by branch sales).
+  useEffect(() => {
+    setWhLoading(true);
+    salesApi
+      .get("/sales/warehouses")
+      .then((r) => {
+        const list = r.data || [];
+        setWarehouses(list);
+        // Auto-select kalau cuma 1 opsi.
+        if (list.length === 1) {
+          setForm((s) => ({ ...s, warehouseId: String(list[0].id) }));
+        }
+      })
+      .catch(() => setWarehouses([]))
+      .finally(() => setWhLoading(false));
+  }, []);
 
   const set = (k) => (e) => setForm((s) => ({ ...s, [k]: e.target.value }));
 
@@ -58,10 +80,15 @@ export default function SalesCustomerAdd() {
     if (codeStatus === "taken") { setError(codeMessage || "Customer Code sudah dipakai."); return; }
     if (!form.customerName.trim()) { setError("Nama customer wajib."); return; }
     if (!form.phone.trim()) { setError("Nomor HP wajib."); return; }
+    if (warehouses.length > 1 && !form.warehouseId) { setError("Pilih gudang."); return; }
     setSubmitting(true);
     setError("");
     try {
-      const r = await salesApi.post("/sales/customers", form);
+      const payload = {
+        ...form,
+        warehouseId: form.warehouseId ? Number(form.warehouseId) : null,
+      };
+      const r = await salesApi.post("/sales/customers", payload);
       // Sukses → langsung ke detail customer baru.
       if (r.data?.id) {
         navigate(`/sales/customers/${r.data.id}`, { replace: true });
@@ -137,6 +164,39 @@ export default function SalesCustomerAdd() {
         <Field label="Kota"              value={form.city}         onChange={set("city")} maxLength={50} />
         <Field label="Kabupaten"         value={form.regency}      onChange={set("regency")} maxLength={50} />
 
+        {/* Warehouse — dropdown dari /sales/warehouses (scoped by branch).
+            Auto-select & disabled kalau cuma 1 opsi. */}
+        <label className="block">
+          <span className="text-[12px] font-semibold text-[#1A0000]">
+            Gudang {warehouses.length > 1 && <span className="text-red-600">*</span>}
+          </span>
+          {whLoading ? (
+            <div className="mt-1 text-sm text-gray-400 p-2.5">Memuat gudang...</div>
+          ) : warehouses.length === 0 ? (
+            <div className="mt-1 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-2.5">
+              Tidak ada gudang yang tersedia untuk Anda.
+            </div>
+          ) : (
+            <select
+              value={form.warehouseId}
+              onChange={set("warehouseId")}
+              disabled={warehouses.length === 1}
+              required={warehouses.length > 1}
+              className="mt-1 w-full text-sm border border-[#F6F3F3] rounded-xl p-2.5 focus:outline-none focus:border-[#B20605] disabled:bg-gray-50 disabled:text-gray-500"
+            >
+              {warehouses.length > 1 && <option value="">-- Pilih Gudang --</option>}
+              {warehouses.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name} {w.code ? `(${w.code})` : ""}
+                </option>
+              ))}
+            </select>
+          )}
+          {warehouses.length === 1 && (
+            <div className="text-[11px] text-gray-400 mt-0.5">Gudang otomatis sesuai profil sales Anda.</div>
+          )}
+        </label>
+
         {error && (
           <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">
             {error}
@@ -152,7 +212,7 @@ export default function SalesCustomerAdd() {
           {submitting ? "Menyimpan..." : "Simpan Customer"}
         </button>
         <div className="text-[11px] text-center text-gray-400 mt-1">
-          Region & branch otomatis menggunakan profil sales Anda.
+          Region & branch otomatis dari profil sales Anda.
         </div>
       </form>
     </div>
