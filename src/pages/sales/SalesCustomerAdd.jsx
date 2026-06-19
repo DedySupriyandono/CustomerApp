@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, UserPlus } from "lucide-react";
+import { ArrowLeft, UserPlus, Check, X } from "lucide-react";
 import salesApi from "../../api/salesApi";
 
 // Form tambah customer baru di bawah sales login.
-// Region/Branch/Warehouse auto dari profil sales (server-side).
+// CustomerCode di-input sales (bukan auto-generate) — divalidasi unique
+// system-wide. Region/Branch/Warehouse auto dari profil sales (server-side).
 export default function SalesCustomerAdd() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
+    customerCode: "",
     customerName: "",
     contactPerson: "",
     phone: "",
@@ -18,11 +20,42 @@ export default function SalesCustomerAdd() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [codeStatus, setCodeStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
+  const [codeMessage, setCodeMessage] = useState("");
+  const codeTimer = useRef(null);
 
   const set = (k) => (e) => setForm((s) => ({ ...s, [k]: e.target.value }));
 
+  // Real-time cek availability customer code dgn debounce 500ms.
+  const onCodeChange = (e) => {
+    const value = e.target.value.trim();
+    setForm((s) => ({ ...s, customerCode: value }));
+    setCodeStatus(null);
+    setCodeMessage("");
+    if (codeTimer.current) clearTimeout(codeTimer.current);
+    if (!value) return;
+    setCodeStatus("checking");
+    codeTimer.current = setTimeout(async () => {
+      try {
+        const r = await salesApi.get("/sales/customers/check-code", { params: { code: value } });
+        if (r.data?.available) {
+          setCodeStatus("available");
+          setCodeMessage(r.data.message || "Code tersedia.");
+        } else {
+          setCodeStatus("taken");
+          setCodeMessage(r.data?.message || "Code sudah dipakai.");
+        }
+      } catch {
+        setCodeStatus(null);
+        setCodeMessage("");
+      }
+    }, 500);
+  };
+
   const submit = async (e) => {
     e.preventDefault();
+    if (!form.customerCode.trim()) { setError("Customer Code wajib."); return; }
+    if (codeStatus === "taken") { setError(codeMessage || "Customer Code sudah dipakai."); return; }
     if (!form.customerName.trim()) { setError("Nama customer wajib."); return; }
     if (!form.phone.trim()) { setError("Nomor HP wajib."); return; }
     setSubmitting(true);
@@ -59,6 +92,43 @@ export default function SalesCustomerAdd() {
       </header>
 
       <form onSubmit={submit} className="px-4 pt-4 space-y-3">
+        {/* Customer Code dgn live check */}
+        <label className="block">
+          <span className="text-[12px] font-semibold text-[#1A0000]">Customer Code *</span>
+          <div className="relative">
+            <input
+              value={form.customerCode}
+              onChange={onCodeChange}
+              required
+              maxLength={10}
+              placeholder="contoh: CUST001"
+              className={`mt-1 w-full text-sm border rounded-xl p-2.5 pr-10 focus:outline-none uppercase
+                ${codeStatus === "taken"      ? "border-red-400 focus:border-red-500"
+                : codeStatus === "available"  ? "border-green-400 focus:border-green-500"
+                                              : "border-[#F6F3F3] focus:border-[#B20605]"}`}
+              style={{ textTransform: "uppercase" }}
+            />
+            {codeStatus === "checking" && (
+              <span className="absolute right-3 top-1/2 mt-0.5 -translate-y-1/2 text-[10px] text-gray-400">cek...</span>
+            )}
+            {codeStatus === "available" && (
+              <Check className="absolute right-3 top-1/2 mt-0.5 -translate-y-1/2 w-4 h-4 text-green-600" />
+            )}
+            {codeStatus === "taken" && (
+              <X className="absolute right-3 top-1/2 mt-0.5 -translate-y-1/2 w-4 h-4 text-red-600" />
+            )}
+          </div>
+          {codeMessage && (
+            <div className={`text-[11px] mt-1 ${
+              codeStatus === "taken" ? "text-red-600" :
+              codeStatus === "available" ? "text-green-600" : "text-gray-500"
+            }`}>
+              {codeMessage}
+            </div>
+          )}
+          <div className="text-[11px] text-gray-400 mt-0.5">Maks 10 karakter, harus unik di seluruh sistem.</div>
+        </label>
+
         <Field label="Nama Customer *" value={form.customerName} onChange={set("customerName")} required maxLength={100} />
         <Field label="Contact Person"   value={form.contactPerson} onChange={set("contactPerson")} maxLength={100} />
         <Field label="Nomor HP *"        value={form.phone}        onChange={set("phone")} required type="tel" inputMode="tel" maxLength={15} />
@@ -75,7 +145,7 @@ export default function SalesCustomerAdd() {
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || codeStatus === "taken" || codeStatus === "checking"}
           className="w-full py-3 rounded-2xl text-sm font-semibold bg-[#B20605] text-white flex items-center justify-center gap-2 disabled:bg-gray-300"
         >
           <UserPlus className="w-4 h-4" />
