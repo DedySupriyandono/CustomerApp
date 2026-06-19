@@ -9,6 +9,7 @@ import {
   ShoppingBag,
   Receipt,
   User as UserIcon,
+  Users,
 } from "lucide-react";
 import salesApi from "../../api/salesApi";
 import { useSalesAuth } from "../../contexts/SalesAuthContext";
@@ -108,6 +109,11 @@ export default function SalesHome() {
               onClick={() => navigate("/sales/transactions")}
               icon={<Receipt className="w-7 h-7 text-[#B20605]" fill="#FECECE" />}
               label="Transaksi"
+            />
+            <MenuItem
+              onClick={() => navigate("/sales/customers")}
+              icon={<Users className="w-7 h-7 text-[#B20605]" fill="#FECECE" />}
+              label="Customer"
             />
             <MenuItem
               onClick={() => navigate("/sales/profile")}
