@@ -44,6 +44,7 @@ import SalesProfile from "./pages/sales/SalesProfile";
 import SalesCustomers from "./pages/sales/SalesCustomers";
 import SalesCustomerDetail from "./pages/sales/SalesCustomerDetail";
 import SalesCustomerAdd from "./pages/sales/SalesCustomerAdd";
+import SalesSell from "./pages/sales/SalesSell";
 
 // Set document.title sesuai prefix path. Sales portal (/sales/*) →
 // "Sales Belanja Yuk", lainnya → "Belanja Yuk".
@@ -141,6 +142,7 @@ export default function App() {
                 <Route path="/sales/customers" element={<RequireSales><SalesCustomers /></RequireSales>} />
                 <Route path="/sales/customers/new" element={<RequireSales><SalesCustomerAdd /></RequireSales>} />
                 <Route path="/sales/customers/:id" element={<RequireSales><SalesCustomerDetail /></RequireSales>} />
+                <Route path="/sales/sell" element={<RequireSales><SalesSell /></RequireSales>} />
 
                   <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
                   <Route path="/sales/notifications" element={<RequireSales><SalesNotifications /></RequireSales>} />
