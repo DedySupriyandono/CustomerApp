@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { CartProvider } from "./contexts/CartContext";
 import { SalesAuthProvider, useSalesAuth } from "./contexts/SalesAuthContext";
+import { OwnerAuthProvider, useOwnerAuth } from "./contexts/OwnerAuthContext";
 import { SalesCartProvider } from "./contexts/SalesCartContext";
 import {
   CustomerNotificationProvider,
@@ -45,13 +46,24 @@ import SalesCustomers from "./pages/sales/SalesCustomers";
 import SalesCustomerDetail from "./pages/sales/SalesCustomerDetail";
 import SalesCustomerAdd from "./pages/sales/SalesCustomerAdd";
 import SalesSell from "./pages/sales/SalesSell";
+// Owner
+import OwnerLogin from "./pages/owner/OwnerLogin";
+import OwnerHome from "./pages/owner/OwnerHome";
+import OwnerReports from "./pages/owner/OwnerReports";
+import OwnerSalesReport from "./pages/owner/OwnerSalesReport";
+import OwnerStockReport from "./pages/owner/OwnerStockReport";
+import OwnerStockDetail from "./pages/owner/OwnerStockDetail";
+import OwnerReturnReport from "./pages/owner/OwnerReturnReport";
+import OwnerProfile from "./pages/owner/OwnerProfile";
 
 // Set document.title sesuai prefix path. Sales portal (/sales/*) →
 // "Sales Belanja Yuk", lainnya → "Belanja Yuk".
 function TitleManager() {
   const { pathname } = useLocation();
   useEffect(() => {
-    document.title = pathname.startsWith("/sales") ? "Sales Belanja Yuk" : "Belanja Yuk";
+    if (pathname.startsWith("/owner")) document.title = "Owner Belanja Yuk";
+    else if (pathname.startsWith("/sales")) document.title = "Sales Belanja Yuk";
+    else document.title = "Belanja Yuk";
   }, [pathname]);
   return null;
 }
@@ -89,10 +101,16 @@ function RequireSales({ children }) {
   return sales ? children : <Navigate to="/sales/login" replace />;
 }
 
+function RequireOwner({ children }) {
+  const { owner } = useOwnerAuth();
+  return owner ? children : <Navigate to="/owner/login" replace />;
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <SalesAuthProvider>
+        <OwnerAuthProvider>
         <CustomerNotificationProvider>
           <SalesNotificationProvider>
             <CartProvider>
@@ -147,6 +165,16 @@ export default function App() {
                   <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
                   <Route path="/sales/notifications" element={<RequireSales><SalesNotifications /></RequireSales>} />
 
+                  {/* Owner portal */}
+                  <Route path="/owner/login" element={<OwnerLogin />} />
+                  <Route path="/owner" element={<RequireOwner><OwnerHome /></RequireOwner>} />
+                  <Route path="/owner/reports" element={<RequireOwner><OwnerReports /></RequireOwner>} />
+                  <Route path="/owner/reports/sales" element={<RequireOwner><OwnerSalesReport /></RequireOwner>} />
+                  <Route path="/owner/reports/stocks" element={<RequireOwner><OwnerStockReport /></RequireOwner>} />
+                  <Route path="/owner/reports/stocks/:id" element={<RequireOwner><OwnerStockDetail /></RequireOwner>} />
+                  <Route path="/owner/reports/returns" element={<RequireOwner><OwnerReturnReport /></RequireOwner>} />
+                  <Route path="/owner/profile" element={<RequireOwner><OwnerProfile /></RequireOwner>} />
+
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </BrowserRouter>
@@ -154,6 +182,7 @@ export default function App() {
             </CartProvider>
           </SalesNotificationProvider>
         </CustomerNotificationProvider>
+        </OwnerAuthProvider>
       </SalesAuthProvider>
     </AuthProvider>
   );
