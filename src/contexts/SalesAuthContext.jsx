@@ -17,8 +17,28 @@ export function SalesAuthProvider({ children }) {
     return raw ? JSON.parse(raw) : null;
   });
 
+  // Cart/warehouse selection di SalesCartContext disimpan di localStorage
+  // — kalau user berubah (ganti login), state lama harus dibersihkan supaya
+  // tidak "stuck" pakai warehouse / cart milik user sebelumnya.
+  const clearSalesCartStorage = () => {
+    try {
+      localStorage.removeItem("salesCart");
+      localStorage.removeItem("salesCartWarehouse");
+    } catch {}
+  };
+
   const login = async (username, password) => {
     const { data } = await axios.post(`${baseURL}/sales/login`, { username, password });
+
+    // Deteksi ganti user. Bandingkan sales.id sebelum overwrite — beda user
+    // → wajib clear cart + warehouse selection.
+    let prevId = null;
+    try {
+      const prevRaw = localStorage.getItem("salesUser");
+      if (prevRaw) prevId = JSON.parse(prevRaw)?.id ?? null;
+    } catch {}
+    if (prevId != null && prevId !== data?.id) clearSalesCartStorage();
+
     localStorage.setItem("salesToken", data.token);
     localStorage.setItem("salesUser", JSON.stringify(data));
     setSales(data);
@@ -28,6 +48,7 @@ export function SalesAuthProvider({ children }) {
   const logout = () => {
     localStorage.removeItem("salesToken");
     localStorage.removeItem("salesUser");
+    clearSalesCartStorage();
     setSales(null);
   };
 

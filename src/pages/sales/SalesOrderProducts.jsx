@@ -30,11 +30,20 @@ export default function SalesOrderProducts() {
   // Auto-pick warehouse sales login. Kalau cuma 1 (kasus normal locked),
   // langsung set tanpa buka picker. Kalau >1 (sales tanpa warehouse_id),
   // baru buka picker.
+  //
+  // Defensive: kalau warehouse di state (dari localStorage) gak ada di
+  // response /sales/warehouses (mis. user ganti login dari sales lain),
+  // override dgn yg dari API. Mencegah "stuck" pakai gudang user lama.
   useEffect(() => {
-    if (warehouse) return;
+    if (warehouses.length === 0) return;
+    const matches = warehouse?.id && warehouses.some((w) => w.id === warehouse.id);
+    if (warehouse && matches) return;
     if (warehouses.length === 1) {
       setWarehouse(warehouses[0]);
-    } else if (warehouses.length > 1) {
+    } else {
+      // Multi pilihan: kalau warehouse lama ada di list, biarkan; kalau
+      // tidak — clear & buka picker.
+      if (warehouse && !matches) setWarehouse(null);
       setPickerOpen(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
