@@ -207,6 +207,8 @@ export default function SalesInvoice() {
                   const lineDiscount = Number(it.discount) || 0;
                   const hasPromo = lineDiscount > 0;
                   const unitNet = hasPromo && it.quantity ? it.unitPrice - lineDiscount / it.quantity : it.unitPrice;
+                  // SN dari SOD (di-scan saat picking) — render kalau ada.
+                  const serials = Array.isArray(it.serials) ? it.serials : [];
                   return (
                     <div
                       key={g.key}
@@ -241,6 +243,18 @@ export default function SalesInvoice() {
                       <div className="text-right text-[#1A0000] font-semibold self-center">
                         {rupiah(it.subtotal)}
                       </div>
+                      {/* SN section — list SN voucher/kartu perdana yg sudah
+                          di-scan gudang. Tampil di bawah row produk. */}
+                      {serials.length > 0 && (
+                        <div className="col-span-3 mt-2 ml-1 pl-3 border-l-2 border-[#FECECE] space-y-1">
+                          {serials.map((sn, idx) => (
+                            <div key={`${it.id}-${idx}`} className="flex items-center gap-1.5 text-[11px]">
+                              <Hash className="w-2.5 h-2.5 text-[#B20605] shrink-0" />
+                              <span className="font-mono text-[#1A0000] truncate">{sn}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 }

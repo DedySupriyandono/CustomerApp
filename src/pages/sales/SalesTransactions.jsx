@@ -7,7 +7,9 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  CheckCircle,
 } from "lucide-react";
+import Swal from "sweetalert2";
 import salesApi from "../../api/salesApi";
 import SalesBottomNav from "../../components/SalesBottomNav";
 import { useSalesCart } from "../../contexts/SalesCartContext";
@@ -40,8 +42,9 @@ export default function SalesTransactions() {
   const [searchInput, setSearchInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [completingId, setCompletingId] = useState(null);
 
-  useEffect(() => {
+  const reload = () => {
     setLoading(true);
     setError("");
     salesApi
@@ -55,7 +58,68 @@ export default function SalesTransactions() {
       })
       .catch((e) => setError(e.response?.data?.message || e.message))
       .finally(() => setLoading(false));
-  }, [status, search, page]);
+  };
+
+  useEffect(reload, [status, search, page]);
+
+  // Tap "Selesai" → konfirmasi via SweetAlert + POST /complete →
+  // SN masuk sales_stock_values.
+  const completeOrder = async (e, order) => {
+    e.stopPropagation();
+    if (completingId) return;
+
+    const confirm = await Swal.fire({
+      title: "Selesaikan Pesanan?",
+      html: `Pesanan <b>${order.orderNumber}</b> akan ditandai <b>Selesai</b><br>` +
+            `dan item-itemnya masuk ke <b>Stock Anda</b>.<br>` +
+            `<span class="text-gray-500" style="font-size:11px">Anda bisa langsung jual lewat menu Scan.</span>`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Ya, Selesaikan",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#1F7A4D",
+      cancelButtonColor: "#6c757d",
+      reverseButtons: true,
+    });
+    if (!confirm.isConfirmed) return;
+
+    setCompletingId(order.id);
+    Swal.fire({
+      title: "Memproses...",
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      didOpen: () => Swal.showLoading(),
+    });
+    try {
+      const r = await salesApi.post(`/sales/orders/${order.id}/complete`);
+      Swal.close();
+      if (r.data?.success) {
+        await Swal.fire({
+          icon: "success",
+          title: "Berhasil!",
+          html: `${r.data.message || "Pesanan diselesaikan."}` +
+                (r.data.snInserted ? `<br><b>${r.data.snInserted} item</b> masuk ke stock.` : ""),
+          confirmButtonColor: "#1F7A4D",
+        });
+        reload();
+      } else {
+        await Swal.fire({
+          icon: "error",
+          title: "Gagal",
+          text: r.data?.message || "Gagal menyelesaikan pesanan.",
+        });
+      }
+    } catch (err) {
+      Swal.close();
+      await Swal.fire({
+        icon: "error",
+        title: "Server Error",
+        text: err.response?.data?.message || err.message || "Gagal.",
+      });
+    } finally {
+      setCompletingId(null);
+    }
+  };
 
   return (
     <div
@@ -164,10 +228,10 @@ export default function SalesTransactions() {
 
             {!loading &&
               orders.map((o) => (
-                <button
+                <div
                   key={o.id}
                   onClick={() => navigate(`/sales/transactions/${o.id}`)}
-                  className="w-full bg-white rounded-2xl p-4 shadow-[0_2px_15px_rgba(0,0,0,0.03)] border border-[#F6F3F3] text-left"
+                  className="w-full bg-white rounded-2xl p-4 shadow-[0_2px_15px_rgba(0,0,0,0.03)] border border-[#F6F3F3] text-left cursor-pointer"
                 >
                   <div className="flex justify-between items-start pb-3 border-b border-gray-100 border-dashed mb-3">
                     <div className="min-w-0 flex-1 pr-2">
@@ -188,7 +252,21 @@ export default function SalesTransactions() {
                       <span className="text-[#B20605] font-bold text-[15px]">{rupiah(o.total)}</span>
                     </div>
                   </div>
-                </button>
+
+                  {/* Tombol Selesai utk status Dikirim — barang sudah sampai,
+                      sales konfirmasi terima → SN masuk ke sales_stock_values
+                      dan bisa langsung dijual via menu Scan. */}
+                  {o.status === "Dikirim" && (
+                    <button
+                      onClick={(e) => completeOrder(e, o)}
+                      disabled={completingId === o.id}
+                      className="w-full mt-3 py-2.5 rounded-xl text-[13px] font-semibold bg-[#1F7A4D] hover:bg-[#175e3a] disabled:bg-gray-300 text-white flex items-center justify-center gap-1.5"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      {completingId === o.id ? "Memproses..." : "Selesai — Masukkan ke Stock"}
+                    </button>
+                  )}
+                </div>
               ))}
           </div>
 
