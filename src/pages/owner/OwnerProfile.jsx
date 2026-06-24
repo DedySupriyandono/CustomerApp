@@ -42,17 +42,20 @@ export default function OwnerProfile() {
       className="mobile-container min-h-screen bg-[#F8F9FC] pb-28"
       style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
     >
-      <div className="flex flex-col items-center pt-10 pb-4">
+      <div
+        className="flex flex-col items-center pt-10 pb-10 rounded-b-[24px]"
+        style={{ background: "linear-gradient(180deg, #1A0000 0%, #540101 100%)" }}
+      >
         <div className="relative">
-          <div className="w-[120px] h-[120px] rounded-full bg-[linear-gradient(135deg,#312E81,#1E1B4B)] text-white flex items-center justify-center text-[34px] font-extrabold shadow-lg border-4 border-white">
+          <div className="w-[120px] h-[120px] rounded-full bg-[linear-gradient(135deg,#FE9F9F,#B20605)] text-white flex items-center justify-center text-[34px] font-extrabold shadow-lg border-4 border-white">
             {initials(owner?.fullName || owner?.username)}
           </div>
-          <span className="absolute bottom-2 right-2 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white" />
+          <span className="absolute bottom-2 right-2 w-4 h-4 rounded-full bg-emerald-400 border-2 border-white" />
         </div>
-        <h2 className="text-[20px] font-bold text-[#1E1B4B] mt-4">{owner?.fullName || owner?.username || "Owner"}</h2>
+        <h2 className="text-[20px] font-bold text-white mt-4">{owner?.fullName || owner?.username || "Owner"}</h2>
       </div>
 
-      <div className="px-4 space-y-3">
+      <div className="px-4 -mt-4 space-y-3">
         <Row tint="bg-blue-50"  icon={<HelpCircle className="w-6 h-6 text-blue-600" />}  title="FAQ"
              desc="Frequently asked questions" onClick={() => Swal.fire({ icon: "info", title: "Coming soon", text: "Halaman FAQ sedang disiapkan." })} />
         <Row tint="bg-indigo-50" icon={<BookOpen className="w-6 h-6 text-indigo-600" />} title="Manual Book"

@@ -28,14 +28,17 @@ export default function OwnerStockReport() {
       className="mobile-container min-h-screen bg-[#F8F9FC] pb-10"
       style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
     >
-      <div className="bg-white px-4 pt-6 pb-4 flex items-center gap-3">
+      <div
+        className="px-4 pt-6 pb-8 flex items-center gap-3 rounded-b-[24px]"
+        style={{ background: "linear-gradient(180deg, #1A0000 0%, #540101 100%)" }}
+      >
         <button onClick={() => navigate(-1)} className="-ml-1 p-1">
-          <ArrowLeft className="w-6 h-6 text-[#1E1B4B]" />
+          <ArrowLeft className="w-6 h-6 text-white" />
         </button>
-        <h1 className="text-[20px] font-bold text-[#1E1B4B]">Outlet Stock Report</h1>
+        <h1 className="text-[20px] font-bold text-white">Outlet Stock Report</h1>
       </div>
 
-      <div className="px-4 mt-3">
+      <div className="px-4 -mt-4">
         <div className="bg-white rounded-2xl flex items-center gap-3 px-4 py-3 shadow-sm">
           <Search className="w-5 h-5 text-gray-400" />
           <input

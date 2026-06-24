@@ -60,23 +60,26 @@ export default function OwnerHome() {
       className="mobile-container min-h-screen bg-[#F8F9FC] pb-28"
       style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
     >
-      <div className="bg-white px-5 pt-6 pb-4 flex items-start justify-between">
+      <div
+        className="px-5 pt-6 pb-8 flex items-start justify-between rounded-b-[24px]"
+        style={{ background: "linear-gradient(180deg, #1A0000 0%, #540101 100%)" }}
+      >
         <div>
-          <p className="text-sm text-gray-500">Welcome back,</p>
-          <h1 className="text-[20px] font-bold text-[#1E1B4B] mt-0.5">
+          <p className="text-sm text-white/80">Welcome back,</p>
+          <h1 className="text-[20px] font-bold text-white mt-0.5">
             {owner?.fullName || owner?.username || "Owner"}
           </h1>
         </div>
         <button
           onClick={() => {}}
-          className="relative bg-white border border-gray-200 rounded-xl p-2.5"
+          className="relative bg-[#7A0202] rounded-full p-2.5"
         >
-          <Bell className="w-5 h-5 text-[#1E1B4B]" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+          <Bell className="w-5 h-5 text-white" />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-400 rounded-full" />
         </button>
       </div>
 
-      <div className="px-4 grid grid-cols-2 gap-3 mt-3">
+      <div className="px-4 grid grid-cols-2 gap-3 -mt-4">
         <StatCard
           label="SALES THIS MONTH"
           value={fmtRupiahShort(dash?.salesThisMonth)}

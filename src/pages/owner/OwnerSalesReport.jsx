@@ -57,14 +57,17 @@ export default function OwnerSalesReport() {
       className="mobile-container min-h-screen bg-[#F8F9FC] pb-10"
       style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
     >
-      <div className="bg-white px-4 pt-6 pb-4 flex items-center gap-3">
+      <div
+        className="px-4 pt-6 pb-8 flex items-center gap-3 rounded-b-[24px]"
+        style={{ background: "linear-gradient(180deg, #1A0000 0%, #540101 100%)" }}
+      >
         <button onClick={() => navigate(-1)} className="-ml-1 p-1">
-          <ArrowLeft className="w-6 h-6 text-[#1E1B4B]" />
+          <ArrowLeft className="w-6 h-6 text-white" />
         </button>
-        <h1 className="text-[20px] font-bold text-[#1E1B4B]">Sales Report</h1>
+        <h1 className="text-[20px] font-bold text-white">Sales Report</h1>
       </div>
 
-      <div className="px-4 mt-3 grid grid-cols-2 gap-3">
+      <div className="px-4 -mt-4 grid grid-cols-2 gap-3">
         <Card label="Total Value"  value={fmtRupiahShort(sum?.totalValue)}  color="text-blue-600" />
         <Card label="Net Revenue"  value={fmtRupiahShort(sum?.netRevenue)}  color="text-emerald-500" />
         <Card label="Total Profit" value={fmtRupiahShort(sum?.totalProfit)} color="text-[#1E1B4B]" />

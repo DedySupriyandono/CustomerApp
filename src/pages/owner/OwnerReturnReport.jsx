@@ -62,14 +62,17 @@ export default function OwnerReturnReport() {
       className="mobile-container min-h-screen bg-[#F8F9FC] pb-10"
       style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
     >
-      <div className="bg-white px-4 pt-6 pb-4 flex items-center gap-3">
+      <div
+        className="px-4 pt-6 pb-8 flex items-center gap-3 rounded-b-[24px]"
+        style={{ background: "linear-gradient(180deg, #1A0000 0%, #540101 100%)" }}
+      >
         <button onClick={() => navigate(-1)} className="-ml-1 p-1">
-          <ArrowLeft className="w-6 h-6 text-[#1E1B4B]" />
+          <ArrowLeft className="w-6 h-6 text-white" />
         </button>
-        <h1 className="text-[20px] font-bold text-[#1E1B4B]">Return Report</h1>
+        <h1 className="text-[20px] font-bold text-white">Return Report</h1>
       </div>
 
-      <div className="px-4 mt-3 grid grid-cols-2 gap-3">
+      <div className="px-4 -mt-4 grid grid-cols-2 gap-3">
         <Card label="Total Return Value" value={fmtRupiahShort(sum?.totalValue)} hint={`${sum?.returnsCount || 0} return bulan ini`} />
         <Card label="Return Rate" value={`${Number(sum?.returnRate || 0).toFixed(1)}%`} hint="Industry Avg: 1.5%" />
         <Card label="Top Product"

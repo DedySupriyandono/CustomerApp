@@ -10,15 +10,18 @@ export default function OwnerReports() {
       className="mobile-container min-h-screen bg-[#F8F9FC] pb-28"
       style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
     >
-      <div className="bg-white px-5 pt-6 pb-4 flex items-center justify-between">
-        <h1 className="text-[24px] font-bold text-[#1E1B4B]">Report</h1>
-        <button className="relative bg-white border border-gray-200 rounded-xl p-2.5">
-          <Bell className="w-5 h-5 text-[#1E1B4B]" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+      <div
+        className="px-5 pt-6 pb-8 flex items-center justify-between rounded-b-[24px]"
+        style={{ background: "linear-gradient(180deg, #1A0000 0%, #540101 100%)" }}
+      >
+        <h1 className="text-[24px] font-bold text-white">Report</h1>
+        <button className="relative bg-[#7A0202] rounded-full p-2.5">
+          <Bell className="w-5 h-5 text-white" />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-400 rounded-full" />
         </button>
       </div>
 
-      <div className="px-4 mt-3 space-y-3">
+      <div className="px-4 -mt-4 space-y-3">
         <Card
           icon={<BarChart3 className="w-7 h-7 text-blue-600" />}
           tint="bg-blue-50"

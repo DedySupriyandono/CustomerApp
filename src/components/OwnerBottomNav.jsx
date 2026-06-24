@@ -36,8 +36,8 @@ export default function OwnerBottomNav() {
 function Item({ icon, label, active, onClick }) {
   return (
     <button onClick={onClick} className="flex flex-col items-center gap-1.5">
-      <div className={active ? "text-[#1E1B4B]" : "text-gray-400"}>{icon}</div>
-      <span className={`text-[12px] font-semibold ${active ? "text-[#1E1B4B]" : "text-gray-400"}`}>
+      <div className={active ? "text-[#B20605]" : "text-gray-400"}>{icon}</div>
+      <span className={`text-[12px] font-semibold ${active ? "text-[#B20605]" : "text-gray-400"}`}>
         {label}
       </span>
     </button>
