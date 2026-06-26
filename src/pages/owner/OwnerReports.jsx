@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Bell, BarChart3, Package, RotateCcw, ChevronRight } from "lucide-react";
+import Swal from "sweetalert2";
 import OwnerBottomNav from "../../components/OwnerBottomNav";
 
 export default function OwnerReports() {
@@ -15,7 +16,11 @@ export default function OwnerReports() {
         style={{ background: "linear-gradient(180deg, #1A0000 0%, #540101 100%)" }}
       >
         <h1 className="text-[24px] font-bold text-white">Report</h1>
-        <button className="relative bg-[#7A0202] rounded-full p-2.5">
+        <button
+          onClick={() => Swal.fire({ icon: "info", title: "Notifikasi", text: "Halaman notifikasi owner akan segera tersedia." })}
+          aria-label="Notifikasi"
+          className="relative bg-[#7A0202] rounded-full p-2.5"
+        >
           <Bell className="w-5 h-5 text-white" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-400 rounded-full" />
         </button>

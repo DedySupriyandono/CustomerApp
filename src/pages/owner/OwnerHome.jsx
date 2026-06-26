@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, TrendingUp, TrendingDown, ChevronDown } from "lucide-react";
+import Swal from "sweetalert2";
 import { ownerApi, useOwnerAuth } from "../../contexts/OwnerAuthContext";
 import { LineChart } from "../../components/owner/OwnerCharts";
 import OwnerBottomNav from "../../components/OwnerBottomNav";
@@ -71,7 +72,8 @@ export default function OwnerHome() {
           </h1>
         </div>
         <button
-          onClick={() => {}}
+          onClick={() => Swal.fire({ icon: "info", title: "Notifikasi", text: "Halaman notifikasi owner akan segera tersedia." })}
+          aria-label="Notifikasi"
           className="relative bg-[#7A0202] rounded-full p-2.5"
         >
           <Bell className="w-5 h-5 text-white" />

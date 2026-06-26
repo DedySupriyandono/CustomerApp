@@ -65,7 +65,7 @@ export default function Catalog() {
             <h1 className="text-white text-base font-bold leading-[26px]">Katalog</h1>
           </div>
           <div className="flex items-center gap-4">
-            <button className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-sm border border-white/5 flex items-center justify-center relative">
+            <button onClick={() => navigate("/notifications")} aria-label="Notifikasi" className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-sm border border-white/5 flex items-center justify-center relative">
               <Bell className="w-5 h-5 text-white" />
               <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full border border-white" />
             </button>
