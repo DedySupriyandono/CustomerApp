@@ -18,7 +18,7 @@ export default function Checkout() {
 
   const [note, setNote] = useState(() => sessionStorage.getItem("orderNote") || "");
   const [delivery, setDelivery] = useState("Diantar Sales");
-  const [payment, setPayment] = useState("COD");
+  const [payment, setPayment] = useState("Transfer Bank");
   const [voucher, setVoucher] = useState("");
   const [voucherInfo, setVoucherInfo] = useState(null); // { valid, discount, label, message }
   const [voucherChecking, setVoucherChecking] = useState(false);
@@ -420,7 +420,6 @@ export default function Checkout() {
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <h3 className="font-semibold mb-3">Metode Pembayaran</h3>
           {[
-            { v: "COD", label: "Cash On Delivery (COD)", icon: "💵" },
             { v: "Transfer Bank", label: "Transfer Bank", sub: "Bank BCA", icon: "🏦" },
           ].map((p) => (
             <label key={p.v} className={`block border-2 rounded-xl p-3 mb-2 cursor-pointer ${payment === p.v ? "border-primary bg-secondary" : "border-gray-200"}`}>

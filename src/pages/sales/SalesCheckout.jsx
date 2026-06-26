@@ -18,8 +18,8 @@ export default function SalesCheckout() {
   const navigate = useNavigate();
 
   const [note, setNote] = useState("");
-  const [delivery, setDelivery] = useState("Diantar Sales");
-  const [payment, setPayment] = useState("COD");
+  const [delivery, setDelivery] = useState("Ambil Sendiri");
+  const [payment, setPayment] = useState("Transfer Bank");
   const [voucher, setVoucher] = useState("");
   const [voucherInfo, setVoucherInfo] = useState(null);
   const [voucherChecking, setVoucherChecking] = useState(false);
@@ -364,13 +364,13 @@ export default function SalesCheckout() {
         <div className="px-4 mt-3">
           <div className="bg-white rounded-2xl p-4 shadow-sm">
             <h3 className="font-semibold mb-3">Metode Pengiriman</h3>
-            {["Diantar Sales", "Ambil Sendiri"].map((m) => (
+            {["Ambil Sendiri"].map((m) => (
               <label key={m} className={`block border-2 rounded-xl p-3 mb-2 cursor-pointer ${delivery === m ? "border-[#B20605] bg-[#FFF5F5]" : "border-gray-200"}`}>
                 <input type="radio" name="delivery" checked={delivery === m} onChange={() => setDelivery(m)} className="hidden" />
                 <div className="flex justify-between items-center">
                   <div>
                     <div className="font-medium text-sm">{m}</div>
-                    <div className="text-xs text-gray-500">Diantar pada hari kunjungan</div>
+                    <div className="text-xs text-gray-500">Sales ambil sendiri di gudang</div>
                   </div>
                   <span className="text-green-600 bg-green-100 text-xs px-2 py-1 rounded-full">Gratis</span>
                 </div>
@@ -383,7 +383,6 @@ export default function SalesCheckout() {
           <div className="bg-white rounded-2xl p-4 shadow-sm">
             <h3 className="font-semibold mb-3">Metode Pembayaran</h3>
             {[
-              { v: "COD", label: "Cash On Delivery (COD)", icon: "💵" },
               { v: "Transfer Bank", label: "Transfer Bank", sub: "Bank BCA", icon: "🏦" },
             ].map((p) => (
               <label key={p.v} className={`block border-2 rounded-xl p-3 mb-2 cursor-pointer ${payment === p.v ? "border-[#B20605] bg-[#FFF5F5]" : "border-gray-200"}`}>
