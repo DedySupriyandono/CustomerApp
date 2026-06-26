@@ -316,7 +316,7 @@ export default function SalesOrderDetail() {
         </div>
       </BottomSheet>
 
-      {order && <OrderChat orderId={order.id} mode="sales" currentUserType="sales" />}
+      {order && <OrderChat orderId={order.id} mode="sales" currentUserType="sales" orderStatus={order.status} />}
     </div>
   );
 }

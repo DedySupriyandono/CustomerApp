@@ -91,7 +91,7 @@ export default function SalesOrderSuccess() {
         </button>
       </div>
 
-      {order && <OrderChat orderId={order.id} mode="sales" currentUserType="sales" />}
+      {order && <OrderChat orderId={order.id} mode="sales" currentUserType="sales" orderStatus={order.status} />}
     </div>
   );
 }

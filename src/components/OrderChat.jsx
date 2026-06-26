@@ -6,14 +6,25 @@ import { playChat } from "../utils/notifSound";
 
 const POLL_INTERVAL = 3000; // 3s while open
 
+// Status yg menutup chat — pesan masih bisa dilihat (read-only), tapi
+// tidak bisa kirim baru. Sinkron dgn aturan di web (SalesOrder/Edit).
+const CHAT_LOCKED_STATUSES = new Set([
+  "Selesai", "Selesai Sebagian",
+  "Dibatalkan",
+  "Completed", "Cancelled", "Deleted",
+]);
+
 /**
  * Floating chat for a given order.
  * Props:
  *  - orderId
  *  - mode: "customer" | "sales"
  *  - currentUserType: "customer" | "sales" (drives bubble alignment)
+ *  - orderStatus: kalau salah satu dari CHAT_LOCKED_STATUSES, input disabled
+ *    dan banner ditampilkan. History tetap bisa di-scroll.
  */
-export default function OrderChat({ orderId, mode = "customer", currentUserType }) {
+export default function OrderChat({ orderId, mode = "customer", currentUserType, orderStatus }) {
+  const chatLocked = CHAT_LOCKED_STATUSES.has(String(orderStatus || ""));
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
@@ -70,6 +81,7 @@ export default function OrderChat({ orderId, mode = "customer", currentUserType 
   }, [messages, open]);
 
   const send = async () => {
+    if (chatLocked) return; // defensive — UI sudah disable, ini double-guard.
     const body = draft.trim();
     if (!body || sending) return;
     setSending(true);
@@ -198,27 +210,36 @@ export default function OrderChat({ orderId, mode = "customer", currentUserType 
               <div ref={bottom} />
             </div>
 
-            <div className="flex items-center gap-2 px-3 py-3 border-t border-[#F6F3F3]">
-              <input
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    send();
-                  }
-                }}
-                placeholder="Tulis pesan..."
-                className="flex-1 bg-[#FBF9F9] rounded-full px-4 py-2.5 text-sm border border-[#F6F3F3] focus:outline-none focus:border-[#B20605]"
-              />
-              <button
-                onClick={send}
-                disabled={!draft.trim() || sending}
-                className="w-10 h-10 rounded-full bg-[linear-gradient(136deg,rgba(254,159,159,1)_0%,rgba(178,6,5,1)_100%)] text-white flex items-center justify-center disabled:opacity-50"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </div>
+            {chatLocked ? (
+              <div className="px-4 py-3 border-t border-[#F6F3F3] bg-[#FBF9F9] text-center">
+                <p className="text-[12px] text-[#606060]">
+                  Chat ditutup — pesanan sudah <strong>{orderStatus}</strong>.
+                </p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Riwayat percakapan tetap bisa dibaca.</p>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-3 border-t border-[#F6F3F3]">
+                <input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      send();
+                    }
+                  }}
+                  placeholder="Tulis pesan..."
+                  className="flex-1 bg-[#FBF9F9] rounded-full px-4 py-2.5 text-sm border border-[#F6F3F3] focus:outline-none focus:border-[#B20605]"
+                />
+                <button
+                  onClick={send}
+                  disabled={!draft.trim() || sending}
+                  className="w-10 h-10 rounded-full bg-[linear-gradient(136deg,rgba(254,159,159,1)_0%,rgba(178,6,5,1)_100%)] text-white flex items-center justify-center disabled:opacity-50"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
