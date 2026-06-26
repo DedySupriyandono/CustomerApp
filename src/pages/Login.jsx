@@ -7,8 +7,8 @@ import logo from "../assets/belanja-yuk.png";
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [phone, setPhone] = useState("81277773187");
-  const [password, setPassword] = useState("P@ssw0rd");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
