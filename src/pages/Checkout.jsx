@@ -17,7 +17,10 @@ export default function Checkout() {
   const navigate = useNavigate();
 
   const [note, setNote] = useState(() => sessionStorage.getItem("orderNote") || "");
-  const [delivery, setDelivery] = useState("Diantar Sales");
+  const [delivery, setDelivery] = useState("Ambil Sendiri");
+  const [shippingMethods, setShippingMethods] = useState(
+    () => [{ code: "ambil_sendiri", label: "Ambil Sendiri", sub: "Customer ambil ke gudang", icon: "📦" }],
+  );
   const [payment, setPayment] = useState("Transfer Bank");
   const [voucher, setVoucher] = useState("");
   const [voucherInfo, setVoucherInfo] = useState(null); // { valid, discount, label, message }
@@ -55,6 +58,20 @@ export default function Checkout() {
   const adminFee = 0;
   // netSubtotal already accounts for promo per item; voucher applied on top.
   const total = Math.max(0, netSubtotal - discount + deliveryFee + adminFee);
+
+  // Load metode pengiriman dari API (per-warehouse setting di MDPOS admin).
+  // Fallback ke default "Ambil Sendiri" kalau API gagal.
+  useEffect(() => {
+    api.get("/customer/shipping-methods")
+      .then((r) => {
+        const arr = Array.isArray(r.data) && r.data.length > 0 ? r.data : null;
+        if (arr) {
+          setShippingMethods(arr);
+          setDelivery((cur) => arr.find((m) => m.label === cur) ? cur : arr[0].label);
+        }
+      })
+      .catch(() => { /* keep default */ });
+  }, []);
 
   // Re-validate voucher when subtotal changes (e.g. items added/removed).
   useEffect(() => {
@@ -395,19 +412,20 @@ export default function Checkout() {
       <div className="px-4 mt-3">
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <h3 className="font-semibold mb-3">Metode Pengiriman</h3>
-          {["Diantar Sales", "Ambil Sendiri"].map((m) => (
-            <label key={m} className={`block border-2 rounded-xl p-3 mb-2 cursor-pointer ${delivery === m ? "border-primary bg-secondary" : "border-gray-200"}`}>
+          {shippingMethods.map((m) => (
+            <label key={m.code} className={`block border-2 rounded-xl p-3 mb-2 cursor-pointer ${delivery === m.label ? "border-primary bg-secondary" : "border-gray-200"}`}>
               <input
                 type="radio"
                 name="delivery"
-                checked={delivery === m}
-                onChange={() => setDelivery(m)}
+                checked={delivery === m.label}
+                onChange={() => setDelivery(m.label)}
                 className="hidden"
               />
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="font-medium text-sm">{m}</div>
-                  <div className="text-xs text-gray-500">Diantar pada hari kunjungan</div>
+              <div className="flex items-center gap-3">
+                <span className="text-xl">{m.icon || "📦"}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm">{m.label}</div>
+                  {m.sub && <div className="text-xs text-gray-500">{m.sub}</div>}
                 </div>
                 <span className="text-green-600 bg-green-100 text-xs px-2 py-1 rounded-full">Gratis</span>
               </div>

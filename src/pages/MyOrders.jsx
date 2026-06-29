@@ -15,12 +15,12 @@ import { useCart } from "../contexts/CartContext";
 import { rupiah } from "../utils/format";
 
 // Transaksi aktif saja — order final (Selesai + Dibatalkan) ada di /reports.
-// Urutan flow:
-//   Menunggu Konfirmasi → Diproses Sales → Diproses Admin → Dipicking → Dikirim → Selesai
+// FLOW BARU (sejak customer order langsung ke Admin SO, skip sales approval):
+//   Menunggu Konfirmasi → Diproses Admin → Dipicking → Dikirim → Selesai
+// Tab "Diproses Sales" di-hapus karena stage itu tidak ada lagi di flow baru.
 const STATUS_OPTIONS = [
   { value: "", label: "Semua" },
   { value: "Menunggu Konfirmasi", label: "Menunggu Konfirmasi" },
-  { value: "Diproses Sales", label: "Diproses Sales" },
   { value: "Diproses Admin", label: "Diproses Admin" },
   { value: "Dipicking", label: "Dipicking" },
   { value: "Dikirim", label: "Dikirim" },
