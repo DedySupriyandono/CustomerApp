@@ -89,26 +89,19 @@ export default function SalesHome() {
             <MenuItem
               onClick={() => navigate("/sales/order")}
               icon={<ShoppingBag className="w-7 h-7 text-[#B20605]" fill="#FECECE" />}
-              label="Order"
+              label="Minta Barang"
             />
-            <MenuItem
-              onClick={() => navigate("/sales/approval")}
-              icon={
-                <div className="relative">
-                  <ClipboardCheck className="w-7 h-7 text-[#B20605]" fill="#FECECE" />
-                  {pendingCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-[#B20605] text-white text-[10px] min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center font-bold">
-                      {pendingCount}
-                    </span>
-                  )}
-                </div>
-              }
-              label="Approval"
-            />
+            {/* Approval di-hide — flow baru: customer order langsung ke
+                Admin SO tanpa sales approval. */}
             <MenuItem
               onClick={() => navigate("/sales/transactions")}
               icon={<Receipt className="w-7 h-7 text-[#B20605]" fill="#FECECE" />}
               label="Transaksi"
+            />
+            <MenuItem
+              onClick={() => navigate("/sales/sales-history")}
+              icon={<Receipt className="w-7 h-7 text-[#B20605]" fill="#FECECE" />}
+              label="Penjualan"
             />
             <MenuItem
               onClick={() => navigate("/sales/customers")}
