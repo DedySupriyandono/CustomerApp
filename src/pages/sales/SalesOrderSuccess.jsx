@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { CheckCircle2, Home as HomeIcon, FileText, ChevronRight } from "lucide-react";
+import Swal from "sweetalert2";
 import salesApi from "../../api/salesApi";
 import { rupiah } from "../../utils/format";
 import OrderItemsList from "../../components/OrderItemsList";
@@ -12,15 +13,68 @@ export default function SalesOrderSuccess() {
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [completing, setCompleting] = useState(false);
 
-  useEffect(() => {
+  const loadOrder = () => {
     setLoading(true);
     salesApi
       .get(`/sales/orders/${id}`)
       .then((r) => setOrder(r.data))
       .catch((e) => console.error(e))
       .finally(() => setLoading(false));
-  }, [id]);
+  };
+
+  useEffect(loadOrder, [id]);
+
+  // "Selesaikan Pesanan" — POST /sales/orders/{id}/complete
+  // (sama dgn SalesTransactions). Item masuk ke sales_stock_values.
+  const completeOrder = async () => {
+    if (completing) return;
+    const c = await Swal.fire({
+      title: "Selesaikan Pesanan?",
+      html: `Pesanan <b>${order.orderNumber}</b> akan ditandai <b>Selesai</b><br>` +
+            `dan item-itemnya masuk ke <b>Stock Anda</b>.<br>` +
+            `<span class="text-gray-500" style="font-size:11px">Anda bisa langsung jual lewat menu Scan.</span>`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Ya, Selesaikan",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#1F7A4D",
+      cancelButtonColor: "#6c757d",
+      reverseButtons: true,
+    });
+    if (!c.isConfirmed) return;
+    setCompleting(true);
+    Swal.fire({
+      title: "Memproses…",
+      allowOutsideClick: false, allowEscapeKey: false,
+      didOpen: () => Swal.showLoading(),
+    });
+    try {
+      const r = await salesApi.post(`/sales/orders/${order.id}/complete`);
+      Swal.close();
+      if (r.data?.success) {
+        await Swal.fire({
+          icon: "success",
+          title: "Berhasil!",
+          html: `${r.data.message || "Pesanan diselesaikan."}` +
+                (r.data.snInserted ? `<br><b>${r.data.snInserted} item</b> masuk ke stock.` : ""),
+          confirmButtonColor: "#1F7A4D",
+        });
+        loadOrder();
+      } else {
+        await Swal.fire({ icon: "error", title: "Gagal", text: r.data?.message || "Gagal menyelesaikan pesanan." });
+      }
+    } catch (err) {
+      Swal.close();
+      await Swal.fire({
+        icon: "error", title: "Gagal",
+        text: err.response?.data?.message || err.message || "Server error",
+      });
+    } finally {
+      setCompleting(false);
+    }
+  };
 
   return (
     <div
@@ -56,6 +110,20 @@ export default function SalesOrderSuccess() {
             <div className="mt-4">
               <OrderTimeline orderId={order.id} apiClient={salesApi} urlPrefix="/sales" />
             </div>
+
+            {/* Selesaikan Pesanan — saat status Dikirim */}
+            {order.status === "Dikirim" && (
+              <button
+                onClick={completeOrder}
+                disabled={completing}
+                className="w-full mt-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-2xl px-4 py-4 flex items-center justify-center gap-3 shadow-lg shadow-green-900/20 disabled:opacity-60"
+              >
+                <CheckCircle2 className="w-5 h-5" />
+                <div className="font-bold text-[14px]">
+                  {completing ? "Memproses..." : "Selesaikan Pesanan"}
+                </div>
+              </button>
+            )}
 
             <button
               onClick={() => navigate(`/sales/invoice/${order.id}`)}

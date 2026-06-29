@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { CheckCircle2, FileText, Home as HomeIcon, ChevronRight, Clock, UserCheck, Truck, PartyPopper, XCircle, RotateCcw, Package } from "lucide-react";
+import Swal from "sweetalert2";
 import api from "../api/api";
 import { rupiah } from "../utils/format";
 import OrderItemsList from "../components/OrderItemsList";
@@ -37,14 +38,54 @@ export default function OrderSuccess() {
   };
   useEffect(reload, [id]);
 
+  // "Selesaikan Pesanan" — pakai endpoint /receive/confirm yg sama dgn
+  // MyOrders supaya stock movement + customer_stock_values ter-handle
+  // konsisten. Confirm via SweetAlert + loading overlay.
   const confirmReceipt = async () => {
-    if (!confirm("Konfirmasi barang sudah Anda terima dalam kondisi baik?")) return;
+    if (confirming) return;
+    const c = await Swal.fire({
+      icon: "question",
+      title: "Selesaikan Pesanan?",
+      text: "Konfirmasi semua barang sudah diterima dengan baik.",
+      showCancelButton: true,
+      confirmButtonText: "Ya, terima",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#1F7A4D",
+      cancelButtonColor: "#6c757d",
+    });
+    if (!c.isConfirmed) return;
     setConfirming(true);
+    Swal.fire({
+      title: "Memproses…",
+      text: "Barang sedang masuk ke stok Anda.",
+      allowOutsideClick: false, allowEscapeKey: false,
+      didOpen: () => Swal.showLoading(),
+    });
     try {
-      await api.post(`/customer/orders/${id}/confirm-receipt`);
-      reload();
+      const r = await api.post("/customer/receive/confirm", { orderId: Number(id) });
+      Swal.close();
+      if (r.data?.success) {
+        await Swal.fire({
+          icon: "success",
+          title: "Berhasil",
+          text: r.data.message || "Pesanan diselesaikan.",
+          confirmButtonColor: "#1F7A4D",
+        });
+        reload();
+      } else {
+        await Swal.fire({
+          icon: "warning",
+          title: "Gagal",
+          text: r.data?.message || "Gagal selesaikan pesanan.",
+        });
+      }
     } catch (e) {
-      alert(e.response?.data?.message || "Gagal konfirmasi");
+      Swal.close();
+      await Swal.fire({
+        icon: "error",
+        title: "Gagal",
+        text: e.response?.data?.message || e.message || "Server error",
+      });
     } finally {
       setConfirming(false);
     }
@@ -158,8 +199,8 @@ export default function OrderSuccess() {
               </div>
             </div>
 
-            {/* Selesaikan Pesanan — saat status Tiba */}
-            {order.status === "Tiba" && (
+            {/* Selesaikan Pesanan — saat status Dikirim atau Tiba */}
+            {(order.status === "Tiba" || order.status === "Dikirim") && (
               <button
                 onClick={confirmReceipt}
                 disabled={confirming}
