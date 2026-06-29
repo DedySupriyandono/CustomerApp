@@ -91,13 +91,9 @@ export default function SalesHome() {
               icon={<ShoppingBag className="w-7 h-7 text-[#B20605]" fill="#FECECE" />}
               label="Minta Barang"
             />
-            {/* Approval di-hide — flow baru: customer order langsung ke
+            {/* Transaksi di-hide dari top grid — diakses dari bottom nav.
+                Approval di-hide — flow baru: customer order langsung ke
                 Admin SO tanpa sales approval. */}
-            <MenuItem
-              onClick={() => navigate("/sales/transactions")}
-              icon={<Receipt className="w-7 h-7 text-[#B20605]" fill="#FECECE" />}
-              label="Transaksi"
-            />
             <MenuItem
               onClick={() => navigate("/sales/sales-history")}
               icon={<Receipt className="w-7 h-7 text-[#B20605]" fill="#FECECE" />}

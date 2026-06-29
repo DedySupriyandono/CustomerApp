@@ -1,59 +1,47 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowLeft,
-  Bell,
-  ShoppingCart,
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  CheckCircle,
+  ArrowLeft, Bell, ShoppingCart, Search,
+  ChevronLeft, ChevronRight, CheckCircle2, XCircle,
 } from "lucide-react";
-import Swal from "sweetalert2";
 import salesApi from "../../api/salesApi";
 import SalesBottomNav from "../../components/SalesBottomNav";
 import { useSalesCart } from "../../contexts/SalesCartContext";
 import { rupiah } from "../../utils/format";
 
-// Urutan flow status aktif (Selesai/Dibatalkan dipindah ke halaman
-// "Permintaan", supaya Transaksi hanya nampilkan order yg masih jalan).
-const STATUS_OPTIONS = [
-  { value: "", label: "Semua" },
-  { value: "Menunggu Konfirmasi", label: "Menunggu Konfirmasi" },
-  { value: "Diproses Sales", label: "Diproses Sales" },
-  { value: "Diproses Admin", label: "Diproses Admin" },
-  { value: "Dipicking", label: "Dipicking" },
-  { value: "Dikirim", label: "Dikirim" },
-];
+// Permintaan (Sales) — order an sales yg sudah final: Selesai + Dibatalkan.
+// Pasangan dgn SalesTransactions (yg menyembunyikan status final ini).
+// Backend reuse /sales/orders/mine dgn param status="Selesai,Dibatalkan".
 
-// Status final — selalu di-exclude dari endpoint supaya Transaksi tidak
-// nampilkan order yg sudah Selesai/Dibatalkan.
-const EXCLUDE_FINAL = "Selesai,Dibatalkan";
+const STATUS_OPTIONS = [
+  { value: "Selesai,Dibatalkan", label: "Semua" },
+  { value: "Selesai", label: "Selesai" },
+  { value: "Dibatalkan", label: "Dibatalkan" },
+];
 
 const PAGE_SIZE = 10;
 
-export default function SalesTransactions() {
+export default function SalesPermintaan() {
   const navigate = useNavigate();
   const { totalItems } = useSalesCart();
+
   const [orders, setOrders] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState("Selesai,Dibatalkan");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [completingId, setCompletingId] = useState(null);
 
-  const reload = () => {
+  useEffect(() => {
     setLoading(true);
     setError("");
     salesApi
       .get("/sales/orders/mine", {
         params: {
-          status: status || undefined,
-          excludeStatus: EXCLUDE_FINAL,
+          status,
           search: search || undefined,
           page, pageSize: PAGE_SIZE,
         },
@@ -65,68 +53,7 @@ export default function SalesTransactions() {
       })
       .catch((e) => setError(e.response?.data?.message || e.message))
       .finally(() => setLoading(false));
-  };
-
-  useEffect(reload, [status, search, page]);
-
-  // Tap "Selesai" → konfirmasi via SweetAlert + POST /complete →
-  // SN masuk sales_stock_values.
-  const completeOrder = async (e, order) => {
-    e.stopPropagation();
-    if (completingId) return;
-
-    const confirm = await Swal.fire({
-      title: "Selesaikan Pesanan?",
-      html: `Pesanan <b>${order.orderNumber}</b> akan ditandai <b>Selesai</b><br>` +
-            `dan item-itemnya masuk ke <b>Stock Anda</b>.<br>` +
-            `<span class="text-gray-500" style="font-size:11px">Anda bisa langsung jual lewat menu Scan.</span>`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Ya, Selesaikan",
-      cancelButtonText: "Batal",
-      confirmButtonColor: "#1F7A4D",
-      cancelButtonColor: "#6c757d",
-      reverseButtons: true,
-    });
-    if (!confirm.isConfirmed) return;
-
-    setCompletingId(order.id);
-    Swal.fire({
-      title: "Memproses...",
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      didOpen: () => Swal.showLoading(),
-    });
-    try {
-      const r = await salesApi.post(`/sales/orders/${order.id}/complete`);
-      Swal.close();
-      if (r.data?.success) {
-        await Swal.fire({
-          icon: "success",
-          title: "Berhasil!",
-          html: `${r.data.message || "Pesanan diselesaikan."}` +
-                (r.data.snInserted ? `<br><b>${r.data.snInserted} item</b> masuk ke stock.` : ""),
-          confirmButtonColor: "#1F7A4D",
-        });
-        reload();
-      } else {
-        await Swal.fire({
-          icon: "error",
-          title: "Gagal",
-          text: r.data?.message || "Gagal menyelesaikan pesanan.",
-        });
-      }
-    } catch (err) {
-      Swal.close();
-      await Swal.fire({
-        icon: "error",
-        title: "Server Error",
-        text: err.response?.data?.message || err.message || "Gagal.",
-      });
-    } finally {
-      setCompletingId(null);
-    }
-  };
+  }, [status, search, page]);
 
   return (
     <div
@@ -144,7 +71,7 @@ export default function SalesTransactions() {
             >
               <ArrowLeft className="w-5 h-5 text-white" />
             </button>
-            <h1 className="text-white text-base font-bold">Transaksi</h1>
+            <h1 className="text-white text-base font-bold">Permintaan</h1>
           </div>
           <div className="flex items-center gap-4">
             <button
@@ -195,17 +122,12 @@ export default function SalesTransactions() {
             </label>
           </form>
 
-          {/* Tab chips horizontal-swipe-able — sama pattern dgn customer
-              MyOrders supaya UX konsisten antara dua portal. */}
-          <div
-            className="flex gap-2 overflow-x-auto scrollbar-hide mt-4 -mx-1 px-1 -mr-5 pr-5 snap-x"
-            style={{ WebkitOverflowScrolling: "touch" }}
-          >
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide mt-4 -mx-1 px-1 snap-x">
             {STATUS_OPTIONS.map((opt) => {
               const active = status === opt.value;
               return (
                 <button
-                  key={opt.value || "all"}
+                  key={opt.value}
                   onClick={() => {
                     setPage(1);
                     setStatus(opt.value);
@@ -221,7 +143,7 @@ export default function SalesTransactions() {
           </div>
 
           {!loading && !error && (
-            <div className="text-[11px] text-gray-500 mt-3">{totalRecords} transaksi</div>
+            <div className="text-[11px] text-gray-500 mt-3">{totalRecords} permintaan</div>
           )}
 
           <div className="mt-3 space-y-3">
@@ -229,52 +151,47 @@ export default function SalesTransactions() {
             {!loading && error && <div className="text-center text-red-600 py-12 text-sm">{error}</div>}
             {!loading && !error && orders.length === 0 && (
               <div className="bg-white rounded-2xl p-8 text-center text-gray-400 text-sm border border-[#F6F3F3]">
-                Belum ada transaksi
+                Belum ada permintaan
               </div>
             )}
 
             {!loading &&
-              orders.map((o) => (
-                <div
-                  key={o.id}
-                  onClick={() => navigate(`/sales/transactions/${o.id}`)}
-                  className="w-full bg-white rounded-2xl p-4 shadow-[0_2px_15px_rgba(0,0,0,0.03)] border border-[#F6F3F3] text-left cursor-pointer"
-                >
-                  <div className="flex justify-between items-start pb-3 border-b border-gray-100 border-dashed mb-3">
-                    <div className="min-w-0 flex-1 pr-2">
-                      <p className="font-bold text-[#1A0000] text-[15px] truncate">{o.orderNumber}</p>
-                      <p className="text-gray-400 text-[11px] mt-0.5">
-                        {new Date(o.createdAt).toLocaleString("id-ID")}
-                      </p>
+              orders.map((o) => {
+                const isDone = o.status === "Selesai";
+                const chipStyle = isDone
+                  ? "bg-[#E6F4EA] text-[#1F7A4D]"
+                  : "bg-[#FFE6E6] text-[#B20605]";
+                return (
+                  <div
+                    key={o.id}
+                    onClick={() => navigate(`/sales/transactions/${o.id}`)}
+                    className="w-full bg-white rounded-2xl p-4 shadow-[0_2px_15px_rgba(0,0,0,0.03)] border border-[#F6F3F3] text-left cursor-pointer"
+                  >
+                    <div className="flex justify-between items-start pb-3 border-b border-gray-100 border-dashed mb-3">
+                      <div className="min-w-0 flex-1 pr-2">
+                        <p className="font-bold text-[#1A0000] text-[15px] truncate">{o.orderNumber}</p>
+                        <p className="text-gray-400 text-[11px] mt-0.5">
+                          {new Date(o.createdAt).toLocaleString("id-ID")}
+                        </p>
+                      </div>
+                      <div className={`${chipStyle} px-3 py-1.5 rounded-full text-[11px] font-semibold shrink-0 flex items-center gap-1`}>
+                        {isDone ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                        {o.status}
+                      </div>
                     </div>
-                    <div className="bg-[#FFF0E6] text-[#E87B1E] px-3 py-1.5 rounded-full text-[11px] font-semibold shrink-0">
-                      {o.status}
+                    <div className="space-y-2 text-[13px]">
+                      <Row label="Jumlah Produk" value={`${o.itemCount} produk`} />
+                      <Row label="Total Item" value={`${o.totalQuantity} pcs`} />
+                      <div className="flex justify-between items-center pt-1">
+                        <span className="text-gray-500">Total</span>
+                        <span className={`font-bold text-[15px] ${isDone ? "text-[#B20605]" : "text-gray-400 line-through"}`}>
+                          {rupiah(o.total)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div className="space-y-2 text-[13px]">
-                    <Row label="Jumlah Produk" value={`${o.itemCount} produk`} />
-                    <Row label="Total Item" value={`${o.totalQuantity} pcs`} />
-                    <div className="flex justify-between items-center pt-1">
-                      <span className="text-gray-500">Total</span>
-                      <span className="text-[#B20605] font-bold text-[15px]">{rupiah(o.total)}</span>
-                    </div>
-                  </div>
-
-                  {/* Tombol Selesai utk status Dikirim — barang sudah sampai,
-                      sales konfirmasi terima → SN masuk ke sales_stock_values
-                      dan bisa langsung dijual via menu Scan. */}
-                  {o.status === "Dikirim" && (
-                    <button
-                      onClick={(e) => completeOrder(e, o)}
-                      disabled={completingId === o.id}
-                      className="w-full mt-3 py-2.5 rounded-xl text-[13px] font-semibold bg-[#1F7A4D] hover:bg-[#175e3a] disabled:bg-gray-300 text-white flex items-center justify-center gap-1.5"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      {completingId === o.id ? "Memproses..." : "Selesai — Masukkan ke Stock"}
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
           </div>
 
           {totalPages > 1 && (
