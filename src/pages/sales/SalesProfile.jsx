@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Bell, ShoppingCart, Phone, Mail, MapPin, Building2,
-  User as UserIcon, LogOut, ChevronRight, Briefcase, KeyRound,
+  User as UserIcon, LogOut, ChevronRight, Briefcase, KeyRound, Pencil,
 } from "lucide-react";
 import salesApi from "../../api/salesApi";
 import { useSalesAuth } from "../../contexts/SalesAuthContext";
@@ -18,6 +18,7 @@ export default function SalesProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pwOpen, setPwOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -98,7 +99,16 @@ export default function SalesProfile() {
           {!loading && (
             <>
               <div className="bg-white rounded-2xl shadow-[0_2px_15px_rgba(0,0,0,0.03)] border border-[#F6F3F3] overflow-hidden">
-                <SectionTitle>Kontak</SectionTitle>
+                <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                  <span className="text-[11px] font-bold text-[#606060] uppercase tracking-wider">Kontak</span>
+                  <button
+                    onClick={() => setContactOpen(true)}
+                    aria-label="Edit kontak"
+                    className="w-7 h-7 rounded-lg bg-[#FFF5F5] text-[#B20605] flex items-center justify-center"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                </div>
                 <InfoRow icon={<Phone className="w-4 h-4" />} label="No. HP" value={user.phone} />
                 <InfoRow icon={<Mail className="w-4 h-4" />} label="Email" value={user.email} />
                 <InfoRow icon={<UserIcon className="w-4 h-4" />} label="Username" value={user.userName} />
@@ -151,6 +161,24 @@ export default function SalesProfile() {
 
       <BottomSheet open={pwOpen} onClose={() => setPwOpen(false)} title="Ubah Password">
         <PasswordForm onDone={() => setPwOpen(false)} />
+      </BottomSheet>
+
+      <BottomSheet open={contactOpen} onClose={() => setContactOpen(false)} title="Ubah Kontak">
+        <ContactForm
+          initial={user}
+          onDone={(updated) => {
+            // Optimistic merge — server return field hasil update; refresh data state.
+            if (updated) {
+              setData((prev) => ({
+                ...(prev || {}),
+                phone: updated.phone ?? prev?.phone,
+                email: updated.email ?? prev?.email,
+                userName: updated.username ?? prev?.userName,
+              }));
+            }
+            setContactOpen(false);
+          }}
+        />
       </BottomSheet>
     </div>
   );
@@ -232,6 +260,68 @@ function PasswordForm({ onDone }) {
           className="flex-1 py-3 rounded-xl bg-[linear-gradient(136deg,rgba(254,159,159,1)_0%,rgba(178,6,5,1)_100%)] text-white font-semibold disabled:opacity-60"
         >
           {loading ? "Menyimpan..." : "Ubah Password"}
+        </button>
+      </div>
+    </>
+  );
+}
+
+function ContactForm({ initial, onDone }) {
+  const [phone, setPhone]       = useState(initial?.phone    || "");
+  const [email, setEmail]       = useState(initial?.email    || "");
+  const [username, setUsername] = useState(initial?.userName || "");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+  const [ok, setOk] = useState("");
+
+  const save = async () => {
+    setErr(""); setOk("");
+    const p = phone.trim(), e = email.trim(), u = username.trim();
+    if (!p && !e && !u) { setErr("Tidak ada perubahan."); return; }
+    if (p && !p.startsWith("0")) { setErr("No. HP harus diawali '0' (mis. 08xxxxxxx)."); return; }
+    if (p && !/^\d+$/.test(p))   { setErr("No. HP hanya boleh angka."); return; }
+    if (e && !/^\S+@\S+\.\S+$/.test(e)) { setErr("Format email tidak valid."); return; }
+    if (u && (u.length < 3 || u.length > 32)) { setErr("Username 3-32 karakter."); return; }
+    if (u && /\s/.test(u)) { setErr("Username tidak boleh mengandung spasi."); return; }
+
+    setLoading(true);
+    try {
+      const { data } = await salesApi.post("/sales/me/profile", {
+        phone: p, email: e, username: u,
+      });
+      setOk(data?.message || "Profil diperbarui");
+      setTimeout(() => onDone(data), 700);
+    } catch (ex) {
+      setErr(ex.response?.data?.message || ex.message || "Gagal menyimpan");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <Field label="No. HP" type="tel" inputMode="numeric" value={phone}
+             onChange={(e) => setPhone(e.target.value)} placeholder="08xxxxxxx" />
+      <Field label="Email" type="email" value={email}
+             onChange={(e) => setEmail(e.target.value)} placeholder="nama@domain.com" />
+      <Field label="Username" type="text" value={username}
+             onChange={(e) => setUsername(e.target.value)} placeholder="username" />
+
+      {err && <div className="text-red-600 text-xs mb-2">{err}</div>}
+      {ok && <div className="text-green-600 text-xs mb-2">{ok}</div>}
+
+      <div className="flex gap-2 mt-2">
+        <button
+          type="button" onClick={() => onDone(null)}
+          className="flex-1 py-3 rounded-xl border border-[#F6F3F3] text-[#606060] font-semibold"
+        >
+          Batal
+        </button>
+        <button
+          type="button" onClick={save} disabled={loading}
+          className="flex-1 py-3 rounded-xl bg-[linear-gradient(136deg,rgba(254,159,159,1)_0%,rgba(178,6,5,1)_100%)] text-white font-semibold disabled:opacity-60"
+        >
+          {loading ? "Menyimpan..." : "Simpan"}
         </button>
       </div>
     </>
