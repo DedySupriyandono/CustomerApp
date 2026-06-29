@@ -24,6 +24,7 @@ import Invoice from "./pages/Invoice";
 import MyOrders from "./pages/MyOrders";
 import Reports from "./pages/Reports";
 import Sell from "./pages/Sell";
+import SalesHistory from "./pages/SalesHistory";
 import ReturnRequest from "./pages/ReturnRequest";
 import InstallPrompt from "./components/InstallPrompt";
 import ReviewForm from "./pages/ReviewForm";
@@ -140,6 +141,7 @@ export default function App() {
                 <Route path="/orders" element={<RequireAuth><MyOrders /></RequireAuth>} />
                 <Route path="/reports" element={<RequireAuth><Reports /></RequireAuth>} />
                 <Route path="/sell" element={<RequireAuth><Sell /></RequireAuth>} />
+                <Route path="/sales-history" element={<RequireAuth><SalesHistory /></RequireAuth>} />
                 <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
 
                 {/* Sales portal */}

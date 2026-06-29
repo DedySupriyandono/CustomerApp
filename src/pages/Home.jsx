@@ -95,7 +95,7 @@ export default function Home() {
               label="Order"
             />
             <MenuItem
-              onClick={() => navigate("/sell")}
+              onClick={() => navigate("/sales-history")}
               icon={<Receipt className="w-7 h-7 text-[#B20605]" fill="#FECECE" />}
               label="Penjualan"
             />

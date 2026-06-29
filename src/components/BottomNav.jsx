@@ -45,7 +45,7 @@ export default function BottomNav() {
       <NavItem
         onClick={() => navigate("/reports")}
         icon={<FileText className="w-6 h-6" />}
-        label="Laporan"
+        label="Pembelian"
         active={isActive("/reports")}
       />
       <NavItem
