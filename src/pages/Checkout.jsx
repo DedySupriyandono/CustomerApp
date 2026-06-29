@@ -426,6 +426,13 @@ export default function Checkout() {
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm">{m.label}</div>
                   {m.sub && <div className="text-xs text-gray-500">{m.sub}</div>}
+                  {m.paymentMethod && (
+                    <div className="mt-1">
+                      <span className="inline-block bg-amber-50 text-amber-700 border border-amber-200 text-[10px] px-2 py-0.5 rounded-full font-semibold">
+                        💰 {m.paymentMethod}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <span className="text-green-600 bg-green-100 text-xs px-2 py-1 rounded-full">Gratis</span>
               </div>

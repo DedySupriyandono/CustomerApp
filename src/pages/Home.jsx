@@ -167,15 +167,32 @@ export default function Home() {
                   </div>
                   <div className="flex justify-between items-center mt-1">
                     <span className="text-gray-500 text-[13px]">Status Pembayaran</span>
-                    <span
-                      className={`font-semibold text-[13px] ${
-                        latestOrder.paymentMethod === "COD"
-                          ? "text-[#E87B1E]"
-                          : "text-[#10B981]"
-                      }`}
-                    >
-                      {latestOrder.paymentMethod === "COD" ? "Belum Bayar" : "Lunas"}
-                    </span>
+                    {(() => {
+                      // Status pembayaran tergantung TAHAP order, bukan cuma
+                      // metode bayar:
+                      //   - Pra-Admin approve ("Menunggu Konfirmasi"): belum
+                      //     ada SO ter-confirm → "Menunggu Konfirmasi" (orange)
+                      //   - Setelah admin process & seterusnya:
+                      //       COD → "Bayar saat terima" (orange)
+                      //       Selain COD (Transfer dll) → "Lunas" (hijau)
+                      //   - Dibatalkan → "Dibatalkan" (merah)
+                      const s = latestOrder.status || "";
+                      let label = "—", color = "text-gray-500";
+                      if (s === "Dibatalkan") {
+                        label = "Dibatalkan"; color = "text-red-600";
+                      } else if (s === "Menunggu Konfirmasi") {
+                        label = "Menunggu Konfirmasi"; color = "text-[#E87B1E]";
+                      } else if (latestOrder.paymentMethod === "COD") {
+                        label = "Bayar saat terima"; color = "text-[#E87B1E]";
+                      } else {
+                        label = "Lunas"; color = "text-[#10B981]";
+                      }
+                      return (
+                        <span className={`font-semibold text-[13px] ${color}`}>
+                          {label}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
               </button>
