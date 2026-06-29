@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle,
+  Calendar,
 } from "lucide-react";
 import Swal from "sweetalert2";
 import salesApi from "../../api/salesApi";
@@ -32,9 +33,22 @@ const EXCLUDE_FINAL = "Selesai,Dibatalkan";
 
 const PAGE_SIZE = 10;
 
+const fmtYmd = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+};
+
 export default function SalesTransactions() {
   const navigate = useNavigate();
   const { totalItems } = useSalesCart();
+
+  // Default rentang: 30 hari terakhir s/d hari ini.
+  const today = new Date();
+  const monthAgo = new Date();
+  monthAgo.setDate(today.getDate() - 30);
+
   const [orders, setOrders] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -42,6 +56,8 @@ export default function SalesTransactions() {
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [from, setFrom] = useState(fmtYmd(monthAgo));
+  const [to, setTo] = useState(fmtYmd(today));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [completingId, setCompletingId] = useState(null);
@@ -55,6 +71,7 @@ export default function SalesTransactions() {
           status: status || undefined,
           excludeStatus: EXCLUDE_FINAL,
           search: search || undefined,
+          from, to,
           page, pageSize: PAGE_SIZE,
         },
       })
@@ -67,7 +84,7 @@ export default function SalesTransactions() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(reload, [status, search, page]);
+  useEffect(reload, [status, search, from, to, page]);
 
   // Tap "Selesai" → konfirmasi via SweetAlert + POST /complete →
   // SN masuk sales_stock_values.
@@ -170,6 +187,35 @@ export default function SalesTransactions() {
         </header>
 
         <section className="bg-[#FBF9F9] rounded-t-[20px] -mt-2 min-h-[calc(100vh-180px)] px-5 pt-[18px]">
+          {/* Date filter */}
+          <div className="bg-white rounded-2xl p-3 border border-[#F6F3F3] shadow-[0_2px_15px_rgba(0,0,0,0.03)] mb-3">
+            <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mb-2">
+              <Calendar className="w-3.5 h-3.5 text-[#B20605]" /> Rentang tanggal
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="text-[10px] text-gray-400">Dari</span>
+                <input
+                  type="date"
+                  value={from}
+                  max={to}
+                  onChange={(e) => { setPage(1); setFrom(e.target.value); }}
+                  className="w-full text-[13px] text-[#1A0000] border border-[#F6F3F3] rounded-lg px-2 py-1.5 mt-0.5 focus:outline-none focus:border-[#B20605]"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[10px] text-gray-400">Sampai</span>
+                <input
+                  type="date"
+                  value={to}
+                  min={from}
+                  onChange={(e) => { setPage(1); setTo(e.target.value); }}
+                  className="w-full text-[13px] text-[#1A0000] border border-[#F6F3F3] rounded-lg px-2 py-1.5 mt-0.5 focus:outline-none focus:border-[#B20605]"
+                />
+              </label>
+            </div>
+          </div>
+
           <form
             onSubmit={(e) => {
               e.preventDefault();
