@@ -24,9 +24,6 @@ export default function SalesCheckout() {
   const [voucherInfo, setVoucherInfo] = useState(null);
   const [voucherChecking, setVoucherChecking] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [shippingMethods, setShippingMethods] = useState([
-    { code: "ambil_sendiri", label: "Ambil Sendiri", sub: "Sales ambil ke gudang", icon: "📦", paymentMethod: "" },
-  ]);
 
   const [collapsed, setCollapsed] = useState({});
   const [selected, setSelected] = useState({});
@@ -55,26 +52,6 @@ export default function SalesCheckout() {
 
   const discount = voucherInfo?.valid ? Number(voucherInfo.discount) || 0 : 0;
   const total = Math.max(0, netSubtotal - discount);
-
-  // Fetch shipping methods dari master Couriers per-warehouse (sama dgn
-  // customer). Re-fetch saat warehouse berubah. Selalu sertakan fallback
-  // "Ambil Sendiri" supaya UI tidak kosong.
-  useEffect(() => {
-    const whId = warehouse?.id;
-    if (!whId) return;
-    salesApi
-      .get("/sales/shipping-methods", { params: { warehouseId: whId } })
-      .then((r) => {
-        if (Array.isArray(r.data) && r.data.length > 0) {
-          setShippingMethods(r.data);
-          if (!r.data.find((m) => m.label === delivery)) {
-            setDelivery(r.data[0].label);
-          }
-        }
-      })
-      .catch(() => { /* fallback default tetap "Ambil Sendiri" */ });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [warehouse?.id]);
 
   useEffect(() => {
     const code = voucher.trim();
@@ -387,30 +364,15 @@ export default function SalesCheckout() {
         <div className="px-4 mt-3">
           <div className="bg-white rounded-2xl p-4 shadow-sm">
             <h3 className="font-semibold mb-3">Metode Pengiriman</h3>
-            {shippingMethods.map((m) => (
-              <label key={m.code} className={`block border-2 rounded-xl p-3 mb-2 cursor-pointer ${delivery === m.label ? "border-[#B20605] bg-[#FFF5F5]" : "border-gray-200"}`}>
-                <input
-                  type="radio"
-                  name="delivery"
-                  checked={delivery === m.label}
-                  onChange={() => setDelivery(m.label)}
-                  className="hidden"
-                />
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">{m.icon || "📦"}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">{m.label}</div>
-                    {m.sub && <div className="text-xs text-gray-500">{m.sub}</div>}
+            {["Ambil Sendiri"].map((m) => (
+              <label key={m} className={`block border-2 rounded-xl p-3 mb-2 cursor-pointer ${delivery === m ? "border-[#B20605] bg-[#FFF5F5]" : "border-gray-200"}`}>
+                <input type="radio" name="delivery" checked={delivery === m} onChange={() => setDelivery(m)} className="hidden" />
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="font-medium text-sm">{m}</div>
+                    <div className="text-xs text-gray-500">Sales ambil sendiri di gudang</div>
                   </div>
-                  {/* Badge kanan: tampilkan paymentMethod kurir kalau ada
-                      (amber), kalau tidak → "Gratis" (hijau). */}
-                  {m.paymentMethod ? (
-                    <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[11px] px-2 py-1 rounded-full font-semibold whitespace-nowrap">
-                      💰 {m.paymentMethod}
-                    </span>
-                  ) : (
-                    <span className="text-green-600 bg-green-100 text-xs px-2 py-1 rounded-full">Gratis</span>
-                  )}
+                  <span className="text-green-600 bg-green-100 text-xs px-2 py-1 rounded-full">Gratis</span>
                 </div>
               </label>
             ))}
