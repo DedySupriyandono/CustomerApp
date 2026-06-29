@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Bell, ShoppingCart, Search,
-  ChevronLeft, ChevronRight, CheckCircle2, XCircle,
+  ChevronLeft, ChevronRight, CheckCircle2, XCircle, Calendar,
 } from "lucide-react";
 import api from "../api/api";
 import BottomNav from "../components/BottomNav";
@@ -22,9 +22,22 @@ const STATUS_TABS = [
 
 const PAGE_SIZE = 10;
 
+// "2026-06-29"
+const fmtYmd = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+};
+
 export default function Reports() {
   const navigate = useNavigate();
   const { totalItems } = useCart();
+
+  // Default: 30 hari terakhir s/d hari ini.
+  const today = new Date();
+  const monthAgo = new Date();
+  monthAgo.setDate(today.getDate() - 30);
 
   const [orders, setOrders] = useState([]);
   const [page, setPage] = useState(1);
@@ -33,6 +46,8 @@ export default function Reports() {
   const [status, setStatus] = useState("Selesai,Dibatalkan");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [from, setFrom] = useState(fmtYmd(monthAgo));
+  const [to, setTo] = useState(fmtYmd(today));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -41,7 +56,7 @@ export default function Reports() {
     setError("");
     api
       .get("/customer/orders", {
-        params: { status, search: search || undefined, page, pageSize: PAGE_SIZE },
+        params: { status, search: search || undefined, from, to, page, pageSize: PAGE_SIZE },
       })
       .then((r) => {
         if (Array.isArray(r.data)) {
@@ -56,7 +71,7 @@ export default function Reports() {
       })
       .catch((e) => setError(e.response?.data?.message || e.message || "Gagal memuat laporan"))
       .finally(() => setLoading(false));
-  }, [status, search, page]);
+  }, [status, search, from, to, page]);
 
   // Summary dihitung dari orders yg ke-load di page ini. Total record-nya
   // akurat dari backend (totalRecords), tapi nominal jumlahnya hanya page ini.
@@ -134,6 +149,35 @@ export default function Reports() {
               </div>
               <div className="text-[18px] font-bold text-[#1A0000] mt-1">{summary.cancelled}</div>
               <div className="text-[11px] text-gray-400 mt-0.5">Pesanan</div>
+            </div>
+          </div>
+
+          {/* Date filter */}
+          <div className="bg-white rounded-2xl p-3 border border-[#F6F3F3] shadow-[0_2px_15px_rgba(0,0,0,0.03)] mb-3">
+            <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mb-2">
+              <Calendar className="w-3.5 h-3.5 text-[#B20605]" /> Rentang tanggal
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="text-[10px] text-gray-400">Dari</span>
+                <input
+                  type="date"
+                  value={from}
+                  max={to}
+                  onChange={(e) => { setPage(1); setFrom(e.target.value); }}
+                  className="w-full text-[13px] text-[#1A0000] border border-[#F6F3F3] rounded-lg px-2 py-1.5 mt-0.5 focus:outline-none focus:border-[#B20605]"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[10px] text-gray-400">Sampai</span>
+                <input
+                  type="date"
+                  value={to}
+                  min={from}
+                  onChange={(e) => { setPage(1); setTo(e.target.value); }}
+                  className="w-full text-[13px] text-[#1A0000] border border-[#F6F3F3] rounded-lg px-2 py-1.5 mt-0.5 focus:outline-none focus:border-[#B20605]"
+                />
+              </label>
             </div>
           </div>
 
