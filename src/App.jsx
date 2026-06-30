@@ -26,6 +26,7 @@ import Reports from "./pages/Reports";
 import Sell from "./pages/Sell";
 import SalesHistory from "./pages/SalesHistory";
 import Returns from "./pages/Returns";
+import Manual from "./pages/Manual";
 import ReturnRequest from "./pages/ReturnRequest";
 import InstallPrompt from "./components/InstallPrompt";
 import ReviewForm from "./pages/ReviewForm";
@@ -50,6 +51,7 @@ import SalesCustomerAdd from "./pages/sales/SalesCustomerAdd";
 import SalesSell from "./pages/sales/SalesSell";
 import SalesSalesHistory from "./pages/sales/SalesSalesHistory";
 import SalesReturns from "./pages/sales/SalesReturns";
+import SalesManual from "./pages/sales/SalesManual";
 import SalesPermintaan from "./pages/sales/SalesPermintaan";
 // Owner
 import OwnerLogin from "./pages/owner/OwnerLogin";
@@ -147,6 +149,7 @@ export default function App() {
                 <Route path="/sell" element={<RequireAuth><Sell /></RequireAuth>} />
                 <Route path="/sales-history" element={<RequireAuth><SalesHistory /></RequireAuth>} />
                 <Route path="/returns" element={<RequireAuth><Returns /></RequireAuth>} />
+                <Route path="/manual" element={<RequireAuth><Manual /></RequireAuth>} />
                 <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
 
                 {/* Sales portal */}
@@ -170,6 +173,7 @@ export default function App() {
                 <Route path="/sales/sell" element={<RequireSales><SalesSell /></RequireSales>} />
                 <Route path="/sales/sales-history" element={<RequireSales><SalesSalesHistory /></RequireSales>} />
                 <Route path="/sales/returns" element={<RequireSales><SalesReturns /></RequireSales>} />
+                <Route path="/sales/manual" element={<RequireSales><SalesManual /></RequireSales>} />
                 <Route path="/sales/permintaan" element={<RequireSales><SalesPermintaan /></RequireSales>} />
 
                   <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />

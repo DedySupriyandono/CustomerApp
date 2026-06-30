@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Pencil,
   KeyRound,
+  BookOpen,
 } from "lucide-react";
 import api from "../api/api";
 import { useAuth } from "../contexts/AuthContext";
@@ -166,10 +167,24 @@ export default function Profile() {
                 </div>
               )}
 
+              {/* Buku Manual */}
+              <button
+                onClick={() => navigate("/manual")}
+                className="w-full mt-4 bg-white border border-[#F6F3F3] rounded-2xl px-4 py-4 flex items-center gap-3"
+              >
+                <div className="w-9 h-9 rounded-lg bg-[#FFF5F5] text-[#B20605] flex items-center justify-center">
+                  <BookOpen className="w-4 h-4" />
+                </div>
+                <span className="flex-1 text-left font-semibold text-[14px] text-[#1A0000]">
+                  Buku Manual
+                </span>
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              </button>
+
               {/* Password */}
               <button
                 onClick={() => setEditing("password")}
-                className="w-full mt-4 bg-white border border-[#F6F3F3] rounded-2xl px-4 py-4 flex items-center gap-3"
+                className="w-full mt-3 bg-white border border-[#F6F3F3] rounded-2xl px-4 py-4 flex items-center gap-3"
               >
                 <div className="w-9 h-9 rounded-lg bg-[#FFF5F5] text-[#B20605] flex items-center justify-center">
                   <KeyRound className="w-4 h-4" />
