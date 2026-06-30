@@ -25,6 +25,7 @@ import MyOrders from "./pages/MyOrders";
 import Reports from "./pages/Reports";
 import Sell from "./pages/Sell";
 import SalesHistory from "./pages/SalesHistory";
+import Returns from "./pages/Returns";
 import ReturnRequest from "./pages/ReturnRequest";
 import InstallPrompt from "./components/InstallPrompt";
 import ReviewForm from "./pages/ReviewForm";
@@ -48,6 +49,7 @@ import SalesCustomerDetail from "./pages/sales/SalesCustomerDetail";
 import SalesCustomerAdd from "./pages/sales/SalesCustomerAdd";
 import SalesSell from "./pages/sales/SalesSell";
 import SalesSalesHistory from "./pages/sales/SalesSalesHistory";
+import SalesReturns from "./pages/sales/SalesReturns";
 import SalesPermintaan from "./pages/sales/SalesPermintaan";
 // Owner
 import OwnerLogin from "./pages/owner/OwnerLogin";
@@ -144,6 +146,7 @@ export default function App() {
                 <Route path="/reports" element={<RequireAuth><Reports /></RequireAuth>} />
                 <Route path="/sell" element={<RequireAuth><Sell /></RequireAuth>} />
                 <Route path="/sales-history" element={<RequireAuth><SalesHistory /></RequireAuth>} />
+                <Route path="/returns" element={<RequireAuth><Returns /></RequireAuth>} />
                 <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
 
                 {/* Sales portal */}
@@ -166,6 +169,7 @@ export default function App() {
                 <Route path="/sales/customers/:id" element={<RequireSales><SalesCustomerDetail /></RequireSales>} />
                 <Route path="/sales/sell" element={<RequireSales><SalesSell /></RequireSales>} />
                 <Route path="/sales/sales-history" element={<RequireSales><SalesSalesHistory /></RequireSales>} />
+                <Route path="/sales/returns" element={<RequireSales><SalesReturns /></RequireSales>} />
                 <Route path="/sales/permintaan" element={<RequireSales><SalesPermintaan /></RequireSales>} />
 
                   <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />

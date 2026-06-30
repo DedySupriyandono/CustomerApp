@@ -10,6 +10,7 @@ import {
   Receipt,
   User as UserIcon,
   Users,
+  RotateCcw,
 } from "lucide-react";
 import salesApi from "../../api/salesApi";
 import { useSalesAuth } from "../../contexts/SalesAuthContext";
@@ -100,6 +101,11 @@ export default function SalesHome() {
               label="Penjualan"
             />
             <MenuItem
+              onClick={() => navigate("/sales/returns")}
+              icon={<RotateCcw className="w-7 h-7 text-[#B20605]" />}
+              label="Pengembalian"
+            />
+            <MenuItem
               onClick={() => navigate("/sales/customers")}
               icon={<Users className="w-7 h-7 text-[#B20605]" fill="#FECECE" />}
               label="Customer"
@@ -125,29 +131,8 @@ export default function SalesHome() {
             }
           />
 
-          {/* Pending approvals call-out */}
-          {pendingCount > 0 && (
-            <button
-              onClick={() => navigate("/sales/approval")}
-              className="mt-4 mx-5 w-[calc(100%-2.5rem)] bg-gradient-to-br from-[#410000] to-[#220000] rounded-[20px] p-4 relative overflow-hidden shadow-lg block text-left"
-            >
-              <div className="flex justify-between items-center relative z-10">
-                <div className="flex items-center gap-2">
-                  <Flame className="w-5 h-5 text-[#FF9D00] fill-[#FF9D00]" />
-                  <h2 className="text-white font-bold text-base">
-                    {pendingCount} Pesanan Menunggu Approval
-                  </h2>
-                </div>
-                <ChevronRight className="w-5 h-5 text-white/80" />
-              </div>
-              <div className="absolute -left-6 top-4 w-32 h-32 opacity-30 z-0">
-                <img src={bagImg} alt="" className="w-full h-full object-contain" />
-              </div>
-              <p className="text-white/80 text-xs mt-2 relative z-10">
-                Tinjau dan approve pesanan customer
-              </p>
-            </button>
-          )}
+          {/* Pending approvals call-out di-hide — flow baru: customer order
+              langsung ke Admin SO tanpa sales approval. */}
 
           {/* Latest sales-placed order */}
           <div className="mt-6 px-5 mb-8">

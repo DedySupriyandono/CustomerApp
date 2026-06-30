@@ -9,6 +9,7 @@ import {
   Receipt,
   Home as HomeIcon,
   Wifi,
+  RotateCcw,
 } from "lucide-react";
 import api from "../api/api";
 import { useAuth } from "../contexts/AuthContext";
@@ -98,6 +99,11 @@ export default function Home() {
               onClick={() => navigate("/sales-history")}
               icon={<Receipt className="w-7 h-7 text-[#B20605]" fill="#FECECE" />}
               label="Penjualan"
+            />
+            <MenuItem
+              onClick={() => navigate("/returns")}
+              icon={<RotateCcw className="w-7 h-7 text-[#B20605]" />}
+              label="Pengembalian"
             />
             <MenuItem
               onClick={() => navigate("/services")}

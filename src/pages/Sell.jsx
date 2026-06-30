@@ -358,17 +358,14 @@ export default function Sell() {
                               className="flex items-center justify-between gap-2 bg-[#FBF9F9] rounded-lg px-2.5 py-1.5"
                             >
                               <code className="text-[11px] text-[#B20605] truncate flex-1">{it.sn}</code>
-                              <button
-                                onClick={() => addFromStock(it.sn, g)}
-                                disabled={inCart}
-                                className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md shrink-0 ${
-                                  inCart
-                                    ? "bg-gray-100 text-gray-400"
-                                    : "bg-[#1F7A4D] text-white"
-                                }`}
-                              >
-                                <Plus className="w-3 h-3" /> {inCart ? "Sudah" : "Jual"}
-                              </button>
+                              {/* Tombol "Jual" per-SN di-hide — flow jual sekarang
+                                  wajib via Scan QR/SN di atas (lebih konsisten
+                                  dgn proses fisik & cegah double-entry). */}
+                              {inCart && (
+                                <span className="text-[10px] font-semibold text-gray-400 shrink-0">
+                                  ✓ Di keranjang
+                                </span>
+                              )}
                             </li>
                           );
                         })}
