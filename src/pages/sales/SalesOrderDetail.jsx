@@ -104,9 +104,10 @@ export default function SalesOrderDetail() {
     );
   }
 
-  // Aksi sales hanya saat order masih menunggu — setelah approve, lanjut ke Admin SO
-  const canApprove = order.status === "Menunggu Konfirmasi";
-  const canReject = order.status === "Menunggu Konfirmasi";
+  // Flow baru: customer order langsung ke Admin SO tanpa sales approval.
+  // Tombol Tolak/Approve di-hide di sini — sales hanya bisa lihat detail.
+  const canApprove = false;
+  const canReject = false;
   const waitingAdminSo = order.status === "Diproses Sales";
 
   return (
