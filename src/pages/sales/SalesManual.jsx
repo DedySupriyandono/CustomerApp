@@ -1,19 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Download, FileText, AlertTriangle } from "lucide-react";
 import salesApi from "../../api/salesApi";
+import PdfViewer from "../../components/PdfViewer";
 
-// Buku Manual viewer (Sales) — sama dgn customer Manual.jsx, beda endpoint.
+// Buku Manual viewer (Sales) — render canvas via react-pdf (PWA-safe).
 // Source: GET /sales/manual → { base64, contentType, fileName }
 export default function SalesManual() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [meta, setMeta] = useState(null);
-  const [blobUrl, setBlobUrl] = useState("");
+  const [bytes, setBytes] = useState(null);
 
   useEffect(() => {
-    let createdUrl = "";
     setLoading(true);
     setError("");
     salesApi
@@ -27,30 +27,33 @@ export default function SalesManual() {
         }
         try {
           const byteChars = atob(data.base64);
-          const bytes = new Uint8Array(byteChars.length);
-          for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
-          const blob = new Blob([bytes], { type: data.contentType || "application/pdf" });
-          createdUrl = URL.createObjectURL(blob);
-          setBlobUrl(createdUrl);
+          const arr = new Uint8Array(byteChars.length);
+          for (let i = 0; i < byteChars.length; i++) arr[i] = byteChars.charCodeAt(i);
+          setBytes(arr);
         } catch (e) {
           setError("Gagal decode base64: " + (e.message || e));
         }
       })
       .catch((e) => setError(e.response?.data?.message || e.message || "Gagal memuat manual"))
       .finally(() => setLoading(false));
-    return () => {
-      if (createdUrl) URL.revokeObjectURL(createdUrl);
-    };
   }, []);
 
+  const pdfFile = useMemo(
+    () => (bytes ? { data: bytes } : null),
+    [bytes]
+  );
+
   const downloadFile = () => {
-    if (!blobUrl) return;
+    if (!bytes) return;
+    const blob = new Blob([bytes], { type: meta?.contentType || "application/pdf" });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = blobUrl;
+    a.href = url;
     a.download = meta?.fileName || "buku-manual-sales.pdf";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   return (
@@ -69,7 +72,7 @@ export default function SalesManual() {
           </button>
           <h1 className="text-white text-base font-bold leading-[26px]">Buku Manual</h1>
         </div>
-        {blobUrl && (
+        {bytes && (
           <button
             onClick={downloadFile}
             aria-label="Download"
@@ -87,7 +90,7 @@ export default function SalesManual() {
         </div>
       )}
 
-      <div className="bg-[#FBF9F9]" style={{ minHeight: "calc(100vh - 140px)" }}>
+      <div className="bg-[#FBF9F9] pb-8" style={{ minHeight: "calc(100vh - 140px)" }}>
         {loading && (
           <div className="text-center py-16">
             <FileText className="w-10 h-10 text-gray-300 mx-auto mb-2" />
@@ -102,18 +105,7 @@ export default function SalesManual() {
           </div>
         )}
 
-        {!loading && !error && blobUrl && (
-          <iframe
-            src={blobUrl}
-            title="Buku Manual Sales"
-            style={{
-              width: "100%",
-              height: "calc(100vh - 140px)",
-              border: "none",
-              display: "block",
-            }}
-          />
-        )}
+        {!loading && !error && pdfFile && <PdfViewer file={pdfFile} />}
       </div>
     </div>
   );

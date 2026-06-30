@@ -1,20 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Download, FileText, AlertTriangle } from "lucide-react";
 import api from "../api/api";
+import PdfViewer from "../components/PdfViewer";
 
-// Buku Manual viewer — fetch file dari backend (base64), render PDF inline
-// pakai blob URL + iframe. Tombol Download tersedia untuk save offline.
+// Buku Manual viewer (customer) — render PDF via react-pdf canvas. Tidak
+// pakai iframe blob: karena iOS Safari & beberapa Android WebView (mode PWA
+// standalone) menolak inline application/pdf di iframe.
 // Source: GET /customer/manual → { base64, contentType, fileName }
 export default function Manual() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [meta, setMeta] = useState(null);
-  const [blobUrl, setBlobUrl] = useState("");
+  const [bytes, setBytes] = useState(null);
 
   useEffect(() => {
-    let createdUrl = "";
     setLoading(true);
     setError("");
     api
@@ -26,33 +27,37 @@ export default function Manual() {
           setError("File manual ada tapi belum di-encode base64. Hubungi admin.");
           return;
         }
-        // Decode base64 → Blob → object URL untuk iframe.
         try {
           const byteChars = atob(data.base64);
-          const bytes = new Uint8Array(byteChars.length);
-          for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
-          const blob = new Blob([bytes], { type: data.contentType || "application/pdf" });
-          createdUrl = URL.createObjectURL(blob);
-          setBlobUrl(createdUrl);
+          const arr = new Uint8Array(byteChars.length);
+          for (let i = 0; i < byteChars.length; i++) arr[i] = byteChars.charCodeAt(i);
+          setBytes(arr);
         } catch (e) {
           setError("Gagal decode base64: " + (e.message || e));
         }
       })
       .catch((e) => setError(e.response?.data?.message || e.message || "Gagal memuat manual"))
       .finally(() => setLoading(false));
-    return () => {
-      if (createdUrl) URL.revokeObjectURL(createdUrl);
-    };
   }, []);
 
+  // react-pdf butuh file prop stabil — pakai useMemo supaya tidak re-load
+  // tiap render. {data: bytes} adalah cara paling reliable utk react-pdf v9.
+  const pdfFile = useMemo(
+    () => (bytes ? { data: bytes } : null),
+    [bytes]
+  );
+
   const downloadFile = () => {
-    if (!blobUrl) return;
+    if (!bytes) return;
+    const blob = new Blob([bytes], { type: meta?.contentType || "application/pdf" });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = blobUrl;
+    a.href = url;
     a.download = meta?.fileName || "buku-manual.pdf";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   return (
@@ -71,7 +76,7 @@ export default function Manual() {
           </button>
           <h1 className="text-white text-base font-bold leading-[26px]">Buku Manual</h1>
         </div>
-        {blobUrl && (
+        {bytes && (
           <button
             onClick={downloadFile}
             aria-label="Download"
@@ -89,7 +94,7 @@ export default function Manual() {
         </div>
       )}
 
-      <div className="bg-[#FBF9F9]" style={{ minHeight: "calc(100vh - 140px)" }}>
+      <div className="bg-[#FBF9F9] pb-8" style={{ minHeight: "calc(100vh - 140px)" }}>
         {loading && (
           <div className="text-center py-16">
             <FileText className="w-10 h-10 text-gray-300 mx-auto mb-2" />
@@ -104,18 +109,7 @@ export default function Manual() {
           </div>
         )}
 
-        {!loading && !error && blobUrl && (
-          <iframe
-            src={blobUrl}
-            title="Buku Manual"
-            style={{
-              width: "100%",
-              height: "calc(100vh - 140px)",
-              border: "none",
-              display: "block",
-            }}
-          />
-        )}
+        {!loading && !error && pdfFile && <PdfViewer file={pdfFile} />}
       </div>
     </div>
   );
