@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Bell, BarChart3, Package, RotateCcw, ChevronRight } from "lucide-react";
-import Swal from "sweetalert2";
+import { BarChart3, TrendingUp, Package, RotateCcw, ChevronRight, Users } from "lucide-react";
 import OwnerBottomNav from "../../components/OwnerBottomNav";
 
 export default function OwnerReports() {
@@ -16,23 +15,22 @@ export default function OwnerReports() {
         style={{ background: "linear-gradient(180deg, #1A0000 0%, #540101 100%)" }}
       >
         <h1 className="text-[24px] font-bold text-white">Report</h1>
-        <button
-          onClick={() => Swal.fire({ icon: "info", title: "Notifikasi", text: "Halaman notifikasi owner akan segera tersedia." })}
-          aria-label="Notifikasi"
-          className="relative bg-[#7A0202] rounded-full p-2.5"
-        >
-          <Bell className="w-5 h-5 text-white" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-400 rounded-full" />
-        </button>
       </div>
 
       <div className="px-4 -mt-4 space-y-3">
         <Card
+          icon={<TrendingUp className="w-7 h-7 text-emerald-600" />}
+          tint="bg-emerald-50"
+          title="Top Sales"
+          desc="Ringkasan penjualan bulanan, top outlet, top product."
+          onClick={() => navigate("/owner/reports/sales")}
+        />
+        <Card
           icon={<BarChart3 className="w-7 h-7 text-blue-600" />}
           tint="bg-blue-50"
           title="Sales Report"
-          desc="Monitor revenue, profit, and sales trends across outlets."
-          onClick={() => navigate("/owner/reports/sales")}
+          desc="Chart per Branch / Regional / Customer / Sales Force."
+          onClick={() => navigate("/owner/reports/sales-group")}
         />
         <Card
           icon={<Package className="w-7 h-7 text-orange-500" />}
@@ -40,6 +38,13 @@ export default function OwnerReports() {
           title="Outlet Stock Report"
           desc="Real-time inventory levels and reorder recommendations."
           onClick={() => navigate("/owner/reports/stocks")}
+        />
+        <Card
+          icon={<Users className="w-7 h-7 text-purple-600" />}
+          tint="bg-purple-50"
+          title="Sales Force Stock Report"
+          desc="Stok Available per sales force (sales_stock_values)."
+          onClick={() => navigate("/owner/reports/sales-stock")}
         />
         <Card
           icon={<RotateCcw className="w-7 h-7 text-rose-500" />}

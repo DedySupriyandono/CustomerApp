@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Search, ChevronRight } from "lucide-react";
+import { ArrowLeft, Search, ChevronRight, Users } from "lucide-react";
 import { ownerApi } from "../../contexts/OwnerAuthContext";
 
-export default function OwnerStockReport() {
+// Sales Force Stock Report — list per sales force dgn ringkasan stok
+// Available (sales_stock_values). Filter "Semua" / "Punya Stok" mengirim
+// hasStock=true ke backend, backend memfilter row totalUnits > 0.
+export default function OwnerSalesStockReport() {
   const navigate = useNavigate();
   const [q, setQ] = useState("");
-  // "all" = tampilkan semua outlet; "with" = hanya yg punya stok qty>0
   const [filter, setFilter] = useState("all");
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -21,7 +23,7 @@ export default function OwnerStockReport() {
         if (filter === "with") params.set("hasStock", "true");
         const qs = params.toString();
         const { data } = await ownerApi.get(
-          `/owner/reports/stocks${qs ? `?${qs}` : ""}`
+          `/owner/reports/sales-force-stocks${qs ? `?${qs}` : ""}`
         );
         if (alive) setItems(data.items || []);
       } catch (e) {
@@ -45,7 +47,7 @@ export default function OwnerStockReport() {
         <button onClick={() => navigate(-1)} className="-ml-1 p-1">
           <ArrowLeft className="w-6 h-6 text-white" />
         </button>
-        <h1 className="text-[20px] font-bold text-white">Outlet Stock Report</h1>
+        <h1 className="text-[20px] font-bold text-white">Sales Force Stock Report</h1>
       </div>
 
       <div className="px-4 -mt-4 space-y-3">
@@ -54,7 +56,7 @@ export default function OwnerStockReport() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search outlet..."
+            placeholder="Search sales force..."
             className="flex-1 outline-none text-[14px] text-[#1E1B4B] placeholder-gray-400 bg-transparent"
           />
         </div>
@@ -69,19 +71,30 @@ export default function OwnerStockReport() {
         {items.map((it) => (
           <button
             key={it.id}
-            onClick={() => navigate(`/owner/reports/stocks/${it.id}`)}
-            className="w-full bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm text-left"
+            onClick={() => navigate(`/owner/reports/sales-stock/${it.id}`)}
+            className="w-full bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm text-left"
           >
-            <div className="min-w-0">
-              <p className="text-[15px] font-bold text-[#1E1B4B] truncate">{it.name}</p>
-              <p className="text-[12px] text-gray-400 mt-1">ID: {it.code}</p>
+            <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center shrink-0">
+              <Users className="w-6 h-6 text-purple-600" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[15px] font-bold text-[#1E1B4B] truncate">{it.name || "-"}</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">{it.code || "-"}</p>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-[11px] text-gray-500">
+                  <span className="font-bold text-[#B20605]">{it.totalUnits}</span> unit
+                </span>
+                <span className="text-[11px] text-gray-500">
+                  <span className="font-bold text-[#1E1B4B]">{it.productCount}</span> produk
+                </span>
+              </div>
             </div>
             <ChevronRight className="w-5 h-5 text-gray-300" />
           </button>
         ))}
         {!loading && items.length === 0 && (
           <div className="text-center py-10 text-[13px] text-gray-400">
-            Tidak ada outlet ditemukan
+            Tidak ada sales force ditemukan
           </div>
         )}
         {loading && (

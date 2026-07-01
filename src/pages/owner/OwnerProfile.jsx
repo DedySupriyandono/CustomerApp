@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  HelpCircle, BookOpen, Lock, Fingerprint, Smartphone, LogOut, ChevronRight, Eye, EyeOff, X,
+  HelpCircle, BookOpen, Lock, LogOut, ChevronRight, Eye, EyeOff, X,
+  Phone, Mail, User as UserIcon, Pencil,
 } from "lucide-react";
 import Swal from "sweetalert2";
 import { ownerApi, useOwnerAuth } from "../../contexts/OwnerAuthContext";
@@ -21,6 +22,39 @@ export default function OwnerProfile() {
   const navigate = useNavigate();
   const { owner, logout } = useOwnerAuth();
   const [showPwModal, setShowPwModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [contact, setContact] = useState({
+    username: owner?.username || "",
+    email:    owner?.email    || "",
+    phone:    owner?.phone    || "",
+  });
+
+  // Fetch data terbaru — localStorage bisa stale.
+  const loadMe = async () => {
+    try {
+      const { data } = await ownerApi.get("/owner/me");
+      setContact({
+        username: data.username || "",
+        email:    data.email    || "",
+        phone:    data.phone    || "",
+      });
+      // Sync ke localStorage supaya konsisten di halaman lain.
+      const raw = localStorage.getItem("ownerUser");
+      if (raw) {
+        const cur = JSON.parse(raw);
+        localStorage.setItem("ownerUser", JSON.stringify({
+          ...cur,
+          username: data.username,
+          email:    data.email,
+          phone:    data.phone,
+          fullName: data.fullName,
+        }));
+      }
+    } catch (e) {
+      if (e.response?.status === 401) navigate("/owner/login", { replace: true });
+    }
+  };
+  useEffect(() => { loadMe(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const doLogout = async () => {
     const r = await Swal.fire({
@@ -48,27 +82,83 @@ export default function OwnerProfile() {
       >
         <div className="relative">
           <div className="w-[120px] h-[120px] rounded-full bg-[linear-gradient(135deg,#FE9F9F,#B20605)] text-white flex items-center justify-center text-[34px] font-extrabold shadow-lg border-4 border-white">
-            {initials(owner?.fullName || owner?.username)}
+            {initials(owner?.fullName || contact.username || owner?.username)}
           </div>
           <span className="absolute bottom-2 right-2 w-4 h-4 rounded-full bg-emerald-400 border-2 border-white" />
         </div>
-        <h2 className="text-[20px] font-bold text-white mt-4">{owner?.fullName || owner?.username || "Owner"}</h2>
+        <h2 className="text-[20px] font-bold text-white mt-4">{owner?.fullName || contact.username || "Owner"}</h2>
       </div>
 
       <div className="px-4 -mt-4 space-y-3">
+        {/* Kontak card */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-[12px] font-bold text-gray-400 tracking-wider">KONTAK</h3>
+            <button
+              onClick={() => setShowContactModal(true)}
+              aria-label="Edit kontak"
+              className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100"
+            >
+              <Pencil className="w-4 h-4 text-[#B20605]" />
+            </button>
+          </div>
+
+          <ContactRow icon={<Phone className="w-5 h-5 text-[#B20605]" />} label="No. HP"    value={contact.phone    || "-"} />
+          <div className="border-t border-gray-100 my-2" />
+          <ContactRow icon={<Mail  className="w-5 h-5 text-[#B20605]" />} label="Email"     value={contact.email    || "-"} />
+          <div className="border-t border-gray-100 my-2" />
+          <ContactRow icon={<UserIcon className="w-5 h-5 text-[#B20605]" />} label="Username" value={contact.username || "-"} />
+        </div>
+
         <Row tint="bg-blue-50"  icon={<HelpCircle className="w-6 h-6 text-blue-600" />}  title="FAQ"
              desc="Frequently asked questions" onClick={() => Swal.fire({ icon: "info", title: "Coming soon", text: "Halaman FAQ sedang disiapkan." })} />
         <Row tint="bg-indigo-50" icon={<BookOpen className="w-6 h-6 text-indigo-600" />} title="Manual Book"
              desc="Comprehensive user guide (PDF)" onClick={() => navigate("/owner/manual")} />
         <Row tint="bg-orange-50" icon={<Lock className="w-6 h-6 text-orange-500" />}     title="Change Password"
              desc="Update your login password" onClick={() => setShowPwModal(true)} />
-        {/* PIN & Biometrics + Notification Preferences di-hide sampai fitur benar-benar tersedia. */}
         <Row tint="bg-red-50" icon={<LogOut className="w-6 h-6 text-red-500" />} title={<span className="text-red-500">Logout</span>}
              desc="Safely logout from session" onClick={doLogout} />
       </div>
 
       {showPwModal && <ChangePwModal onClose={() => setShowPwModal(false)} />}
+      {showContactModal && (
+        <EditContactModal
+          initial={contact}
+          onClose={() => setShowContactModal(false)}
+          onSaved={(data) => {
+            setContact({
+              username: data.username || "",
+              email:    data.email    || "",
+              phone:    data.phone    || "",
+            });
+            const raw = localStorage.getItem("ownerUser");
+            if (raw) {
+              const cur = JSON.parse(raw);
+              localStorage.setItem("ownerUser", JSON.stringify({
+                ...cur,
+                username: data.username,
+                email:    data.email,
+                phone:    data.phone,
+              }));
+            }
+          }}
+        />
+      )}
       <OwnerBottomNav />
+    </div>
+  );
+}
+
+function ContactRow({ icon, label, value }) {
+  return (
+    <div className="flex items-center gap-3 py-1">
+      <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] text-gray-400">{label}</p>
+        <p className="text-[14px] font-bold text-[#1E1B4B] truncate">{value}</p>
+      </div>
     </div>
   );
 }
@@ -86,6 +176,79 @@ function Row({ tint, icon, title, desc, onClick }) {
       </div>
       <ChevronRight className="w-5 h-5 text-gray-300" />
     </button>
+  );
+}
+
+function EditContactModal({ initial, onClose, onSaved }) {
+  const [username, setUsername] = useState(initial.username || "");
+  const [email,    setEmail]    = useState(initial.email    || "");
+  const [phone,    setPhone]    = useState(initial.phone    || "");
+  const [loading,  setLoading]  = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!username.trim()) {
+      Swal.fire({ icon: "warning", title: "Username kosong", text: "Username wajib diisi" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data } = await ownerApi.put("/owner/profile/contact", {
+        username: username.trim(),
+        email:    email.trim(),
+        phone:    phone.trim(),
+      });
+      onSaved(data);
+      await Swal.fire({ icon: "success", title: "Berhasil", text: data.message || "Kontak diperbarui" });
+      onClose();
+    } catch (err) {
+      Swal.fire({ icon: "error", title: "Gagal", text: err.response?.data?.message || "Gagal menyimpan" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-[100] flex items-end justify-center" onClick={onClose}>
+      <form
+        onSubmit={submit}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-[420px] bg-white rounded-t-3xl px-5 pt-4 pb-7 max-h-[88vh] overflow-y-auto"
+      >
+        <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-3" />
+        <div className="flex items-center justify-between">
+          <h3 className="text-[16px] font-bold text-[#1E1B4B]">Edit Kontak</h3>
+          <button type="button" onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+        </div>
+
+        <label className="block text-[12px] font-semibold text-[#1E1B4B] mt-4 mb-1.5">No. HP</label>
+        <input
+          type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="08xx..."
+          className="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-3 text-[14px] focus:outline-none focus:border-[#1E1B4B] focus:bg-white mb-3"
+        />
+
+        <label className="block text-[12px] font-semibold text-[#1E1B4B] mb-1.5">Email</label>
+        <input
+          type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com"
+          className="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-3 text-[14px] focus:outline-none focus:border-[#1E1B4B] focus:bg-white mb-3"
+        />
+
+        <label className="block text-[12px] font-semibold text-[#1E1B4B] mb-1.5">Username</label>
+        <input
+          type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="username"
+          required
+          className="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-3 text-[14px] focus:outline-none focus:border-[#1E1B4B] focus:bg-white"
+        />
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full mt-5 bg-[linear-gradient(136deg,rgba(254,159,159,1)_0%,rgba(178,6,5,1)_100%)] text-white font-bold py-3 rounded-xl shadow disabled:opacity-60"
+        >
+          {loading ? "Menyimpan..." : "Simpan"}
+        </button>
+      </form>
+    </div>
   );
 }
 

@@ -58,8 +58,11 @@ import OwnerLogin from "./pages/owner/OwnerLogin";
 import OwnerHome from "./pages/owner/OwnerHome";
 import OwnerReports from "./pages/owner/OwnerReports";
 import OwnerSalesReport from "./pages/owner/OwnerSalesReport";
+import OwnerSalesReport2 from "./pages/owner/OwnerSalesReport2";
 import OwnerStockReport from "./pages/owner/OwnerStockReport";
 import OwnerStockDetail from "./pages/owner/OwnerStockDetail";
+import OwnerSalesStockReport from "./pages/owner/OwnerSalesStockReport";
+import OwnerSalesStockDetail from "./pages/owner/OwnerSalesStockDetail";
 import OwnerReturnReport from "./pages/owner/OwnerReturnReport";
 import OwnerProfile from "./pages/owner/OwnerProfile";
 import OwnerManual from "./pages/owner/OwnerManual";
@@ -185,8 +188,11 @@ export default function App() {
                   <Route path="/owner" element={<RequireOwner><OwnerHome /></RequireOwner>} />
                   <Route path="/owner/reports" element={<RequireOwner><OwnerReports /></RequireOwner>} />
                   <Route path="/owner/reports/sales" element={<RequireOwner><OwnerSalesReport /></RequireOwner>} />
+                  <Route path="/owner/reports/sales-group" element={<RequireOwner><OwnerSalesReport2 /></RequireOwner>} />
                   <Route path="/owner/reports/stocks" element={<RequireOwner><OwnerStockReport /></RequireOwner>} />
                   <Route path="/owner/reports/stocks/:id" element={<RequireOwner><OwnerStockDetail /></RequireOwner>} />
+                  <Route path="/owner/reports/sales-stock" element={<RequireOwner><OwnerSalesStockReport /></RequireOwner>} />
+                  <Route path="/owner/reports/sales-stock/:id" element={<RequireOwner><OwnerSalesStockDetail /></RequireOwner>} />
                   <Route path="/owner/reports/returns" element={<RequireOwner><OwnerReturnReport /></RequireOwner>} />
                   <Route path="/owner/profile" element={<RequireOwner><OwnerProfile /></RequireOwner>} />
                   <Route path="/owner/manual" element={<RequireOwner><OwnerManual /></RequireOwner>} />
