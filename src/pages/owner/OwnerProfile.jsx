@@ -59,13 +59,10 @@ export default function OwnerProfile() {
         <Row tint="bg-blue-50"  icon={<HelpCircle className="w-6 h-6 text-blue-600" />}  title="FAQ"
              desc="Frequently asked questions" onClick={() => Swal.fire({ icon: "info", title: "Coming soon", text: "Halaman FAQ sedang disiapkan." })} />
         <Row tint="bg-indigo-50" icon={<BookOpen className="w-6 h-6 text-indigo-600" />} title="Manual Book"
-             desc="Comprehensive user guide (PDF)" onClick={() => Swal.fire({ icon: "info", title: "Coming soon", text: "Link manual akan diunggah ke sistem." })} />
+             desc="Comprehensive user guide (PDF)" onClick={() => navigate("/owner/manual")} />
         <Row tint="bg-orange-50" icon={<Lock className="w-6 h-6 text-orange-500" />}     title="Change Password"
              desc="Update your login password" onClick={() => setShowPwModal(true)} />
-        <Row tint="bg-emerald-50" icon={<Fingerprint className="w-6 h-6 text-emerald-600" />} title="PIN & Biometrics"
-             desc="Setup 6-digit security PIN" onClick={() => Swal.fire({ icon: "info", title: "Coming soon", text: "Fitur PIN & Biometrics akan segera tersedia." })} />
-        <Row tint="bg-violet-50" icon={<Smartphone className="w-6 h-6 text-violet-600" />} title="Notification Preferences"
-             desc="Alert & email settings" onClick={() => Swal.fire({ icon: "info", title: "Coming soon", text: "Preferensi notifikasi akan segera tersedia." })} />
+        {/* PIN & Biometrics + Notification Preferences di-hide sampai fitur benar-benar tersedia. */}
         <Row tint="bg-red-50" icon={<LogOut className="w-6 h-6 text-red-500" />} title={<span className="text-red-500">Logout</span>}
              desc="Safely logout from session" onClick={doLogout} />
       </div>

@@ -71,14 +71,7 @@ export default function OwnerHome() {
             {owner?.fullName || owner?.username || "Owner"}
           </h1>
         </div>
-        <button
-          onClick={() => Swal.fire({ icon: "info", title: "Notifikasi", text: "Halaman notifikasi owner akan segera tersedia." })}
-          aria-label="Notifikasi"
-          className="relative bg-[#7A0202] rounded-full p-2.5"
-        >
-          <Bell className="w-5 h-5 text-white" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-400 rounded-full" />
-        </button>
+        {/* Icon notifikasi di-hide — owner belum punya notif channel sendiri. */}
       </div>
 
       <div className="px-4 grid grid-cols-2 gap-3 -mt-4">

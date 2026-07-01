@@ -62,6 +62,7 @@ import OwnerStockReport from "./pages/owner/OwnerStockReport";
 import OwnerStockDetail from "./pages/owner/OwnerStockDetail";
 import OwnerReturnReport from "./pages/owner/OwnerReturnReport";
 import OwnerProfile from "./pages/owner/OwnerProfile";
+import OwnerManual from "./pages/owner/OwnerManual";
 
 // Set document.title sesuai prefix path. Sales portal (/sales/*) →
 // "Sales Belanja Yuk", lainnya → "Belanja Yuk".
@@ -188,6 +189,7 @@ export default function App() {
                   <Route path="/owner/reports/stocks/:id" element={<RequireOwner><OwnerStockDetail /></RequireOwner>} />
                   <Route path="/owner/reports/returns" element={<RequireOwner><OwnerReturnReport /></RequireOwner>} />
                   <Route path="/owner/profile" element={<RequireOwner><OwnerProfile /></RequireOwner>} />
+                  <Route path="/owner/manual" element={<RequireOwner><OwnerManual /></RequireOwner>} />
 
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
