@@ -9,6 +9,7 @@ import api from "../api/api";
 import BottomNav from "../components/BottomNav";
 import { useCart } from "../contexts/CartContext";
 import { rupiah } from "../utils/format";
+import { qrExtract } from "../utils/qrNormalize";
 
 export default function Sell() {
   const navigate = useNavigate();
@@ -61,7 +62,9 @@ export default function Sell() {
   }
 
   async function tryAdd(code) {
-    const c = (code || "").trim();
+    // Extract SN "cantik" dulu — support paste URL Telkomsel / voucher.
+    // Server pakai categories.qr_pattern; kalau bukan URL, return as-is.
+    const c = await qrExtract(api, "customer", code);
     if (!c) return;
     // Debounce kamera (sama SN per-frame).
     const now = Date.now();

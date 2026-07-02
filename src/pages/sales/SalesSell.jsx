@@ -8,6 +8,7 @@ import { Html5Qrcode } from "html5-qrcode";
 import salesApi from "../../api/salesApi";
 import SalesBottomNav from "../../components/SalesBottomNav";
 import { rupiah } from "../../utils/format";
+import { qrExtract } from "../../utils/qrNormalize";
 
 // Mirror Sell.jsx untuk customer — versi sales.
 // Sales scan SN dari stock-nya sendiri (yg di-receive saat SLO Selesai)
@@ -62,7 +63,9 @@ export default function SalesSell() {
   }
 
   async function tryAdd(code) {
-    const c = (code || "").trim();
+    // Extract SN "cantik" dulu — support paste URL Telkomsel / voucher.
+    // Server pakai categories.qr_pattern; kalau bukan URL, return as-is.
+    const c = await qrExtract(salesApi, "sales", code);
     if (!c) return;
     const now = Date.now();
     if (lastDecoded.current.code === c && now - lastDecoded.current.at < 2500) return;
