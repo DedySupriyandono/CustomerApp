@@ -12,6 +12,7 @@ export default function Checkout() {
   const {
     items, setQty, remove, removeSerial,
     subtotal, promoTotal, netSubtotal, clear, totalItems, lineInfo,
+    refreshPromos,
   } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -58,6 +59,13 @@ export default function Checkout() {
   const adminFee = 0;
   // netSubtotal already accounts for promo per item; voucher applied on top.
   const total = Math.max(0, netSubtotal - discount + deliveryFee + adminFee);
+
+  // Refresh promos setiap masuk Checkout — cart snapshot bisa stale kalau
+  // admin ubah harga/schedule setelah item masuk keranjang.
+  useEffect(() => {
+    refreshPromos?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load metode pengiriman dari API (per-warehouse setting di MDPOS admin).
   // Fallback ke default "Ambil Sendiri" kalau API gagal.

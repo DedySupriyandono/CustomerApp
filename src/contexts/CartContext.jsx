@@ -47,6 +47,25 @@ export function CartProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerId]);
 
+  // Refresh promos untuk semua item di cart. Promos di-snapshot saat add-to-cart
+  // dan bisa stale kalau admin ubah schedule/harga setelahnya. Panggil di
+  // Checkout mount supaya display discount sinkron dgn DB terkini.
+  const refreshPromos = async () => {
+    const ids = Array.from(new Set(items.map((i) => i.productId).filter(Boolean)));
+    if (ids.length === 0) return;
+    try {
+      const r = await api.post("/customer/promos/bulk", { productIds: ids });
+      const map = r.data || {};
+      setItems((prev) =>
+        prev.map((it) => {
+          const fresh = map[it.productId] || map[String(it.productId)];
+          if (!fresh) return it;
+          return { ...it, promos: fresh };
+        })
+      );
+    } catch (_) { /* silent — keep cached promos */ }
+  };
+
   // === Persist ke localStorage tiap perubahan ===
   useEffect(() => {
     localStorage.setItem(LS_KEY, JSON.stringify(items));
@@ -163,6 +182,7 @@ export function CartProvider({ children }) {
         lineInfo,
         totalItems,
         hydrated,
+        refreshPromos,
       }}
     >
       {children}
