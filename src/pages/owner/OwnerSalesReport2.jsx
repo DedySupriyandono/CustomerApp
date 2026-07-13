@@ -14,6 +14,7 @@ const TABS = [
   { key: "regional", label: "Per Regional" },
   { key: "customer", label: "Per Customer" },
   { key: "sales",    label: "Per Sales Force" },
+  { key: "invoice",  label: "Per Invoice" },
 ];
 
 const PALETTE = [
@@ -180,11 +181,18 @@ export default function OwnerSalesReport2() {
                     <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500 shrink-0">
                       {i + 1}
                     </span>
-                    <span className="font-semibold text-[#1E1B4B] truncate">{it.label || "-"}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-[#1E1B4B] truncate">{it.label || "-"}</div>
+                      {it.sub && (
+                        <div className="text-[10px] text-gray-400 truncate">{it.sub}</div>
+                      )}
+                    </div>
                   </div>
                   <div className="text-right shrink-0 ml-2">
                     <div className="font-bold text-[#B20605] text-[13px]">{fmtRupiah(it.revenue)}</div>
-                    <div className="text-[10px] text-gray-400">{it.orders} orders</div>
+                    <div className="text-[10px] text-gray-400">
+                      {tab === "invoice" ? "1 order" : `${it.orders} orders`}
+                    </div>
                   </div>
                 </div>
                 <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
