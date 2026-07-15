@@ -302,6 +302,12 @@ export default function Invoice() {
                 </>
               );
             })()}
+            {Number(order.orderTaxAmount) > 0 && (
+              <MoneyRow
+                label={`Order Tax (${Number(order.orderTax || 0).toString()}%)`}
+                value={Number(order.orderTaxAmount) || 0}
+              />
+            )}
             <MoneyRow label="Biaya Pengiriman" value={order.deliveryFee} />
             <MoneyRow label="Biaya Admin" value={order.adminFee} />
             <div className="border-t border-dashed border-gray-300 pt-2 mt-2 flex justify-between font-bold text-[15px]">
