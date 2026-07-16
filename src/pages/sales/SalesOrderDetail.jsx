@@ -226,7 +226,6 @@ export default function SalesOrderDetail() {
                 />
               )}
               <Money label="Pengiriman" value={order.deliveryFee} />
-              <Money label="Biaya Admin" value={order.adminFee} />
               <div className="border-t border-dashed border-gray-200 mt-2 pt-2 flex justify-between font-bold text-[15px]">
                 <span>TOTAL</span>
                 <span className="text-[#B20605]">{rupiah(order.total)}</span>

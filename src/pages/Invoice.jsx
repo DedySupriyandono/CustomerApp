@@ -309,7 +309,6 @@ export default function Invoice() {
               />
             )}
             <MoneyRow label="Biaya Pengiriman" value={order.deliveryFee} />
-            <MoneyRow label="Biaya Admin" value={order.adminFee} />
             <div className="border-t border-dashed border-gray-300 pt-2 mt-2 flex justify-between font-bold text-[15px]">
               <span className="text-[#1A0000]">TOTAL PEMBAYARAN</span>
               <span className="text-[#B20605]">{rupiah(order.total)}</span>

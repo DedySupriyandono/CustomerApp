@@ -530,7 +530,6 @@ export default function Checkout() {
             )}
             <Row label="Biaya Pengiriman" value={rupiah(deliveryFee)} />
             <Row label="Diskon Promo" value={"- " + rupiah(discount)} />
-            <Row label="Biaya Admin" value={rupiah(adminFee)} />
             <div className="border-t border-dashed pt-2 mt-2 flex justify-between font-bold">
               <span>TOTAL PEMBAYARAN</span>
               <span>{rupiah(total)}</span>
