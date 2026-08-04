@@ -27,10 +27,8 @@ export default function CatalogProductDetail() {
       .finally(() => setLoading(false));
   }, [uid]);
 
-  const isKartuPerdana = useMemo(
-    () => data?.category?.toLowerCase().includes("kartu perdana"),
-    [data]
-  );
+  // Backend return flag `preAssigned` (bool) dari categories.sn_mode.
+  const isPreAssigned = data?.preAssigned === true;
 
   const stock = data?.stock ?? 0;
   const price = data?.price ?? 0;
@@ -185,7 +183,7 @@ export default function CatalogProductDetail() {
           </div>
 
           {/* Kartu Perdana → tampilkan list nomor read-only */}
-          {isKartuPerdana && (
+          {isPreAssigned && (
             <>
               <h3 className="font-semibold text-[15px] text-[#1A0000] mt-5 mb-2">
                 Nomor Tersedia

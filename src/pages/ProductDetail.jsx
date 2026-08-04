@@ -59,14 +59,12 @@ export default function ProductDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.id]);
 
-  const isKartuPerdana = useMemo(
-    () => data?.category?.toLowerCase().includes("kartu perdana"),
-    [data]
-  );
+  // Backend return flag `preAssigned` (bool) dari categories.sn_mode.
+  const isPreAssigned = data?.preAssigned === true;
 
   const stock = data?.stock ?? 0;
   const price = data?.price ?? 0;
-  const effectiveQty = isKartuPerdana ? selectedSerials.length : qty;
+  const effectiveQty = isPreAssigned ? selectedSerials.length : qty;
   const promos = data?.activePromos || [];
   const { active: activePromo, next: nextPromo } = describePromos(promos, effectiveQty);
   const line = lineWithPromo(price, effectiveQty, promos);
@@ -91,7 +89,7 @@ export default function ProductDetail() {
       promos: data.activePromos || [],
     };
 
-    if (isKartuPerdana) {
+    if (isPreAssigned) {
       if (selectedSerials.length === 0) {
         alert("Pilih minimal satu nomor perdana");
         return;
@@ -272,7 +270,7 @@ export default function ProductDetail() {
           </div>
 
           {/* Kartu Perdana → serial list */}
-          {isKartuPerdana && (
+          {isPreAssigned && (
             <>
               <h3 className="font-semibold text-[15px] text-[#1A0000] mt-5 mb-2">
                 Pilih Nomor
@@ -311,7 +309,7 @@ export default function ProductDetail() {
           )}
 
           {/* Non-Kartu Perdana → quantity stepper (editable + validasi stok) */}
-          {!isKartuPerdana && (
+          {!isPreAssigned && (
             <>
               <h3 className="font-semibold text-[15px] text-[#1A0000] mt-5 mb-3">
                 Atur Jumlah

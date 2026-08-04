@@ -34,10 +34,9 @@ export default function SalesProductDetail() {
       .finally(() => setLoading(false));
   }, [uid, warehouse?.id, navigate]);
 
-  const isKartuPerdana = useMemo(
-    () => data?.category?.toLowerCase().includes("kartu perdana"),
-    [data]
-  );
+  // Backend return flag `preAssigned` (bool) — dihitung dari
+  // categories.sn_mode. Ganti string-check nama kategori yg lama.
+  const isPreAssigned = data?.preAssigned === true;
 
   // Pre-fill state dari cart:
   //   - Kartu Perdana: checkbox SN sesuai yg sudah di-cart.
@@ -61,7 +60,7 @@ export default function SalesProductDetail() {
   }, [data?.id]);
   const stock = data?.stock ?? 0;
   const price = data?.price ?? 0;
-  const effectiveQty = isKartuPerdana ? selectedSerials.length : qty;
+  const effectiveQty = isPreAssigned ? selectedSerials.length : qty;
   const promos = data?.activePromos || [];
   const { active: activePromo, next: nextPromo } = describePromos(promos, effectiveQty);
   const line = lineWithPromo(price, effectiveQty, promos);
@@ -81,7 +80,7 @@ export default function SalesProductDetail() {
       imageContentType: data.imageList?.[0]?.contentType,
       promos: data.activePromos || [],
     };
-    if (isKartuPerdana) {
+    if (isPreAssigned) {
       if (selectedSerials.length === 0) return alert("Pilih minimal satu nomor perdana");
       addSerial(cartProduct, selectedSerials);
     } else {
@@ -249,7 +248,7 @@ export default function SalesProductDetail() {
             )}
           </div>
 
-          {isKartuPerdana && (
+          {isPreAssigned && (
             <>
               <h3 className="font-semibold text-[15px] text-[#1A0000] mt-5 mb-2">Pilih Nomor</h3>
               <div className="bg-white rounded-xl border border-[#F6F3F3] max-h-[260px] overflow-y-auto divide-y divide-[#F6F3F3]">
@@ -278,7 +277,7 @@ export default function SalesProductDetail() {
             </>
           )}
 
-          {!isKartuPerdana && (
+          {!isPreAssigned && (
             <>
               <h3 className="font-semibold text-[15px] text-[#1A0000] mt-5 mb-3">Atur Jumlah</h3>
               <div className="bg-white rounded-xl border border-[#F6F3F3] p-4 flex items-center justify-between">

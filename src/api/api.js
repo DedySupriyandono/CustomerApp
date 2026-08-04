@@ -7,11 +7,7 @@ import axios from "axios";
 //   http://192.167.61.17:5015/api — same address space, no Private Network
 //   Access (PNA) block.
 const resolveBaseUrl = () => {
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  if (typeof window !== "undefined" && window.location?.hostname) {
-    return "https://api-golden.modoto.net/api";
-  }
-  return "https://api-golden.modoto.net/api";
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;  
 };
 
 const api = axios.create({ baseURL: resolveBaseUrl() });

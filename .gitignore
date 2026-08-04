@@ -27,3 +27,8 @@ build
 *.njsproj
 *.sln
 *.sw?
+
+# Editor
+.env
+.env.uat
+.env.prd
