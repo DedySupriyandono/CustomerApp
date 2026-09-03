@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Bell, ShoppingCart, Camera, X, Trash2, Scan,
-  ChevronDown, ChevronUp, Plus, Package,
+  ChevronDown, ChevronUp, Plus, Package, Layers,
 } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
 import api from "../api/api";
@@ -30,6 +30,18 @@ export default function Sell() {
   const [stockLoading, setStockLoading] = useState(true);
   const [stockErr, setStockErr] = useState("");
   const [expanded, setExpanded] = useState({}); // productId → true
+
+  // Scan Range state — bulk add SN dari From..To (max 1000 per batch).
+  // Untuk voucher/kartu perdana yg SN-nya sequential numeric — cepat drpd
+  // scan satu-satu. Server-side validate di /customer/sell/scan-range.
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeTo, setRangeTo] = useState("");
+  const [rangeBusy, setRangeBusy] = useState(false);
+  const [rangeMsg, setRangeMsg] = useState("");
+  const [rangeKind, setRangeKind] = useState(""); // "ok" | "err" | ""
+  const [rangeProgress, setRangeProgress] = useState({ done: 0, total: 0 });
+  const RANGE_MAX  = 100000; // total cap client-side (naikkan bertahap sesuai kebutuhan bisnis)
+  const CHUNK_SIZE = 500;    // SN per POST — di bawah server cap 1000; naik dari 100 utk kurangi round-trip di range besar
 
   const scannerRef = useRef(null);
   const lastDecoded = useRef({ code: "", at: 0 });
@@ -116,6 +128,149 @@ export default function Sell() {
     const num = Number(val) || 0;
     setCart((prev) => prev.map((x) => (x.qr === qr ? { ...x, unitPrice: num } : x)));
   }
+
+  // Generate array SN dari From..To. Support prefix huruf + suffix
+  // numeric (mis. "V001A001".."V001A010"). Return [] kalau invalid
+  // atau range lebih dari RANGE_MAX.
+  //
+  // Rule:
+  //   - Pattern wajib: `^(.*?)(\d+)$` — bagian numeric HARUS di ujung.
+  //   - Prefix (huruf/angka campuran) HARUS sama antara From & To.
+  //   - Pad zero preserve length awal (mis. "001" → "002"..."010").
+  function generateSnRange(from, to) {
+    if (!from || !to) return { list: [], error: "From & To wajib diisi." };
+    const f = String(from).trim(), t = String(to).trim();
+    if (f === "" || t === "") return { list: [], error: "From & To wajib diisi." };
+
+    const mFrom = /^(.*?)(\d+)$/.exec(f);
+    const mTo   = /^(.*?)(\d+)$/.exec(t);
+    if (!mFrom || !mTo) return { list: [], error: "SN harus berakhiran angka (mis. V001, 800586624418)." };
+    if (mFrom[1] !== mTo[1]) return { list: [], error: `Prefix From (${mFrom[1] || "-"}) & To (${mTo[1] || "-"}) beda.` };
+
+    const prefix    = mFrom[1];
+    const startStr  = mFrom[2], endStr = mTo[2];
+    const padLen    = Math.max(startStr.length, endStr.length);
+    const start     = BigInt(startStr), end = BigInt(endStr);
+    if (start > end) return { list: [], error: "From > To. Range terbalik." };
+    const countBig = end - start + 1n;
+    if (countBig > BigInt(RANGE_MAX))
+      return { list: [], error: `Range terlalu besar (${countBig}). Max ${RANGE_MAX} per batch.` };
+
+    const count = Number(countBig);
+    const list = new Array(count);
+    for (let i = 0; i < count; i++) {
+      const num = (start + BigInt(i)).toString().padStart(padLen, "0");
+      list[i] = prefix + num;
+    }
+    return { list, error: null };
+  }
+
+  async function doScanRange() {
+    const { list, error } = generateSnRange(rangeFrom, rangeTo);
+    if (error) {
+      setRangeKind("err");
+      setRangeMsg(error);
+      beep(false);
+      return;
+    }
+    // Dedup vs cart (SN yg sudah di keranjang di-skip di client, tidak
+    // dikirim ke server — irit payload).
+    const inCart = new Set(cart.map((x) => x.qr));
+    const toSend = list.filter((sn) => !inCart.has(sn));
+    if (toSend.length === 0) {
+      setRangeKind("err");
+      setRangeMsg(`Semua ${list.length} SN sudah di keranjang.`);
+      beep(false);
+      return;
+    }
+
+    setRangeBusy(true);
+    setRangeKind("");
+    setRangeProgress({ done: 0, total: toSend.length });
+    setRangeMsg(`Memvalidasi ${toSend.length} SN…`);
+
+    // Chunk client-side supaya:
+    //   1. Payload per request tetap kecil (100 SN ≈ 1-2 KB) → hindari
+    //      request body limit / lambat di mobile network.
+    //   2. Progress bar bisa update per chunk — user liat kemajuan real.
+    //   3. Kalau 1 chunk error, batch sebelumnya sudah masuk cart → tidak
+    //      hilang semua kalau network kejeblak di tengah.
+    const chunks = [];
+    for (let i = 0; i < toSend.length; i += CHUNK_SIZE) {
+      chunks.push(toSend.slice(i, i + CHUNK_SIZE));
+    }
+
+    const allAdded   = [];
+    const allSkipped = [];
+    let doneCount    = 0;
+    let errorMsg     = null;
+
+    try {
+      for (let ci = 0; ci < chunks.length; ci++) {
+        const chunk = chunks[ci];
+        try {
+          const r = await api.post("/customer/sell/scan-range", { sns: chunk });
+          const added   = r.data?.added   || [];
+          const skipped = r.data?.skipped || [];
+          allAdded.push(...added);
+          allSkipped.push(...skipped);
+
+          // Merge langsung ke cart per chunk — user liat cart bertambah
+          // real-time, bukan nunggu semua chunk selesai baru render.
+          if (added.length > 0) {
+            setCart((prev) => [
+              ...prev,
+              ...added.map((it) => ({
+                qr: it.sn, productId: it.productId,
+                productName: it.productName || `Product #${it.productId}`,
+                productNumber: it.productNumber,
+                unitPrice: Number(it.unitPrice || 0),
+              })),
+            ]);
+          }
+        } catch (chunkErr) {
+          // Chunk gagal — catat error tapi lanjut chunk berikut supaya
+          // sebagian data masih tersimpan.
+          const chunkFailMsg = chunkErr.response?.data?.message || "Server error";
+          errorMsg = `Chunk ${ci + 1}/${chunks.length} gagal: ${chunkFailMsg}`;
+          allSkipped.push(
+            ...chunk.map((sn) => ({ sn, reason: "chunk-failed" }))
+          );
+        }
+        doneCount += chunk.length;
+        setRangeProgress({ done: doneCount, total: toSend.length });
+      }
+
+      const inCartSkip = list.length - toSend.length;
+      let summary = `✓ ${allAdded.length} SN ditambah`;
+      if (allSkipped.length > 0) {
+        const byReason = allSkipped.reduce((acc, s) => {
+          acc[s.reason] = (acc[s.reason] || 0) + 1; return acc;
+        }, {});
+        const reasons = Object.entries(byReason)
+          .map(([k, v]) => `${v} ${k}`).join(", ");
+        summary += ` · ${allSkipped.length} skip (${reasons})`;
+      }
+      if (inCartSkip > 0) summary += ` · ${inCartSkip} sudah di keranjang`;
+      if (errorMsg) summary += `  [${errorMsg}]`;
+      setRangeKind(allAdded.length > 0 ? "ok" : "err");
+      setRangeMsg(summary);
+      beep(allAdded.length > 0);
+      if (allAdded.length > 0) { setRangeFrom(""); setRangeTo(""); }
+    } finally {
+      setRangeBusy(false);
+      setTimeout(() => setRangeProgress({ done: 0, total: 0 }), 1500);
+    }
+  }
+
+  // Live preview jumlah SN kalau From/To valid — bantu user aware
+  // sebelum klik Scan Range (cegah range gede kelewat).
+  const rangePreview = (() => {
+    if (!rangeFrom || !rangeTo) return null;
+    const { list, error } = generateSnRange(rangeFrom, rangeTo);
+    if (error) return { error };
+    return { count: list.length };
+  })();
 
   // Tambah SN dari stock list — sama jalur dgn scan, tanpa hit /check
   // (stock sudah pasti Available karena baru di-load).
@@ -301,6 +456,94 @@ export default function Sell() {
                 }`}
               >
                 {statusMsg}
+              </div>
+            )}
+          </div>
+
+          {/* Scan Range — bulk add SN sequential dari From..To.
+              Untuk voucher/kartu perdana yg SN numeric berurutan. Max 1000/batch. */}
+          <div className="bg-white rounded-2xl p-4 border border-[#F6F3F3] shadow-[0_2px_15px_rgba(0,0,0,0.03)] mb-3">
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-bold text-[#1A0000] text-[14px] flex items-center gap-1.5">
+                <Layers className="w-4 h-4 text-[#B20605]" /> Scan Range
+              </div>
+              <div className="text-[11px] text-gray-400">max {RANGE_MAX}</div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[11px] text-gray-500">From</label>
+                <input
+                  type="text"
+                  value={rangeFrom}
+                  onChange={(e) => { setRangeFrom(e.target.value); setRangeMsg(""); }}
+                  placeholder="SN awal"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px]"
+                  inputMode="text"
+                  autoComplete="off"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-gray-500">To</label>
+                <input
+                  type="text"
+                  value={rangeTo}
+                  onChange={(e) => { setRangeTo(e.target.value); setRangeMsg(""); }}
+                  placeholder="SN akhir"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px]"
+                  inputMode="text"
+                  autoComplete="off"
+                />
+              </div>
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <div className="text-[11px] flex-1 min-w-0 truncate">
+                {rangePreview?.error && (
+                  <span className="text-red-600">⚠ {rangePreview.error}</span>
+                )}
+                {rangePreview?.count > 0 && (
+                  <span className="text-gray-600">
+                    Akan validasi <b>{rangePreview.count}</b> SN
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={doScanRange}
+                disabled={rangeBusy || !rangeFrom.trim() || !rangeTo.trim() || rangePreview?.error}
+                className="bg-[#B20605] text-white text-[13px] font-semibold px-4 py-2 rounded-lg disabled:opacity-50 shrink-0"
+              >
+                {rangeBusy ? "…" : "Scan Range"}
+              </button>
+            </div>
+
+            {/* Progress bar — muncul selagi chunk berjalan. */}
+            {rangeProgress.total > 0 && (
+              <div className="mt-2">
+                <div className="flex items-center justify-between text-[11px] text-gray-600 mb-1">
+                  <span>Progress</span>
+                  <span>
+                    <b>{rangeProgress.done}</b> / {rangeProgress.total} SN
+                    {" · "}
+                    {Math.round((rangeProgress.done / rangeProgress.total) * 100)}%
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#B20605] transition-all duration-200 ease-out"
+                    style={{
+                      width: `${Math.min(100, (rangeProgress.done / rangeProgress.total) * 100)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {rangeMsg && (
+              <div
+                className={`mt-2 text-[12px] ${
+                  rangeKind === "ok" ? "text-[#1F7A4D]" : rangeKind === "err" ? "text-red-600" : "text-gray-500"
+                }`}
+              >
+                {rangeMsg}
               </div>
             )}
           </div>

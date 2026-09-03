@@ -41,8 +41,8 @@ export default function SalesSell() {
   const [rangeMsg, setRangeMsg] = useState("");
   const [rangeKind, setRangeKind] = useState(""); // "ok" | "err" | ""
   const [rangeProgress, setRangeProgress] = useState({ done: 0, total: 0 });
-  const RANGE_MAX   = 1000;
-  const CHUNK_SIZE  = 100;   // SN per POST — safe payload + smooth progress
+  const RANGE_MAX   = 100000; // total cap client-side (naikkan bertahap sesuai kebutuhan bisnis)
+  const CHUNK_SIZE  = 500;    // SN per POST — di bawah server cap 1000; naik dari 100 utk kurangi round-trip di range besar
 
   const scannerRef = useRef(null);
   const lastDecoded = useRef({ code: "", at: 0 });
