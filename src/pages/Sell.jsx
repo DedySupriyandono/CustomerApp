@@ -129,6 +129,30 @@ export default function Sell() {
     setCart((prev) => prev.map((x) => (x.qr === qr ? { ...x, unitPrice: num } : x)));
   }
 
+  // Normalize input SN — strip URL wrapper + potong 15-digit fisik ke 12-digit
+  // internal SN. Kalau tidak match pattern URL/15-digit → passthrough (SN dgn
+  // prefix huruf mis. V001, atau 12-digit pure numeric tetap valid).
+  //
+  // Kenapa perlu:
+  //   User paste URL Telkomsel `https://www.telkomsel.com/…?sn=252888448906398`
+  //   (60+ char, 15-digit trailing). Kalau di-subtract as-is, delta count-nya
+  //   ke-inflasi 1000× karena 3 digit terakhir (`398`) yang konstan ikut
+  //   di-subtract. Contoh: 200 SN kelihatan jadi 200.000 SN → melebihi cap.
+  //   Server-side sudah punya QrSnExtractor via categories.qr_pattern, tapi
+  //   client-side compute count TIDAK punya akses ke pattern itu → harus
+  //   normalize lokal supaya subtract & progress bar akurat.
+  function normalizeSnInput(raw) {
+    const s = String(raw || "").trim();
+    if (s === "") return "";
+    const mUrl = s.match(/[?&]sn=(\d+)/i);
+    if (mUrl) {
+      const d = mUrl[1];
+      return d.length === 15 ? d.slice(0, 12) : d;
+    }
+    if (/^\d{15}$/.test(s)) return s.slice(0, 12);
+    return s;
+  }
+
   // Generate array SN dari From..To. Support prefix huruf + suffix
   // numeric (mis. "V001A001".."V001A010"). Return [] kalau invalid
   // atau range lebih dari RANGE_MAX.
@@ -139,7 +163,8 @@ export default function Sell() {
   //   - Pad zero preserve length awal (mis. "001" → "002"..."010").
   function generateSnRange(from, to) {
     if (!from || !to) return { list: [], error: "From & To wajib diisi." };
-    const f = String(from).trim(), t = String(to).trim();
+    // Normalize dulu — URL Telkomsel / 15-digit fisik → 12-digit internal.
+    const f = normalizeSnInput(from), t = normalizeSnInput(to);
     if (f === "" || t === "") return { list: [], error: "From & To wajib diisi." };
 
     const mFrom = /^(.*?)(\d+)$/.exec(f);
