@@ -690,7 +690,7 @@ export default function SalesSell() {
 
           {/* Buyer */}
           <div className="bg-white rounded-2xl p-4 border border-[#F6F3F3] shadow-[0_2px_15px_rgba(0,0,0,0.03)] mb-3">
-            <div className="font-bold text-[#1A0000] text-[14px] mb-3">Pembeli (opsional)</div>
+            <div className="font-bold text-[#1A0000] text-[14px] mb-3">Pembeli</div>
             <div className="space-y-2">
               <input
                 type="text"

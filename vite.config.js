@@ -1,13 +1,16 @@
-import { defineConfig } from "vite";
+import {
+  defineConfig
+} from "vite";
 import react from "@vitejs/plugin-react";
-import { VitePWA } from "vite-plugin-pwa";
+import {
+  VitePWA
+} from "vite-plugin-pwa";
 
 export default defineConfig({
   plugins: [
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      // Pakai includeAssets supaya icon ikut precached service worker.
       includeAssets: ["favicon.svg", "apple-touch-icon.png", "pwa-192.png", "pwa-512.png"],
       manifest: {
         name: "Belanja Yuk",
@@ -19,26 +22,49 @@ export default defineConfig({
         orientation: "portrait",
         start_url: "/",
         scope: "/",
-        // id berbeda dari sales (yang pakai "/sales") supaya browser treat
-        // sebagai dua PWA terpisah & boleh ke-install dua-duanya.
         id: "/",
         lang: "id",
-        icons: [
-          { src: "/pwa-192.png", sizes: "192x192", type: "image/png" },
-          { src: "/pwa-512.png", sizes: "512x512", type: "image/png" },
-          // maskable supaya Android adaptive-icon kerja (no white border).
-          { src: "/pwa-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
-          { src: "/pwa-192.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
+        icons: [{
+            src: "/pwa-192.png",
+            sizes: "192x192",
+            type: "image/png"
+          },
+          {
+            src: "/pwa-512.png",
+            sizes: "512x512",
+            type: "image/png"
+          },
+          {
+            src: "/pwa-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable"
+          },
+          {
+            src: "/pwa-192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "any maskable"
+          },
         ],
       },
       workbox: {
-        // Cache navigation + asset; biarkan API calls ke runtime cache jaringan.
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
-        // Fallback ke index.html untuk SPA routes saat offline.
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api/],
       },
     }),
   ],
-  server: { port: 5173, host: true },
+
+  server: {
+    port: 5032,
+    host: true,
+    allowedHosts: ["dev-belanjayuk.modoto.net"],
+  },
+
+  preview: {
+    port: 5032,
+    host: true,
+    allowedHosts: ["dev-belanjayuk.modoto.net"],
+  },
 });
