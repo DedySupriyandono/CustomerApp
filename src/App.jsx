@@ -53,6 +53,8 @@ import SalesSalesHistory from "./pages/sales/SalesSalesHistory";
 import SalesReturns from "./pages/sales/SalesReturns";
 import SalesManual from "./pages/sales/SalesManual";
 import SalesPermintaan from "./pages/sales/SalesPermintaan";
+import SalesInbound from "./pages/sales/SalesInbound";
+import SalesInboundDetail from "./pages/sales/SalesInboundDetail";
 // Owner
 import OwnerLogin from "./pages/owner/OwnerLogin";
 import OwnerHome from "./pages/owner/OwnerHome";
@@ -179,6 +181,8 @@ export default function App() {
                 <Route path="/sales/returns" element={<RequireSales><SalesReturns /></RequireSales>} />
                 <Route path="/sales/manual" element={<RequireSales><SalesManual /></RequireSales>} />
                 <Route path="/sales/permintaan" element={<RequireSales><SalesPermintaan /></RequireSales>} />
+                <Route path="/sales/inbound"      element={<RequireSales><SalesInbound /></RequireSales>} />
+                <Route path="/sales/inbound/:uid" element={<RequireSales><SalesInboundDetail /></RequireSales>} />
 
                   <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
                   <Route path="/sales/notifications" element={<RequireSales><SalesNotifications /></RequireSales>} />

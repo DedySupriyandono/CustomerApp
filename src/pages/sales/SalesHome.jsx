@@ -11,6 +11,7 @@ import {
   User as UserIcon,
   Users,
   RotateCcw,
+  PackageOpen,
 } from "lucide-react";
 import salesApi from "../../api/salesApi";
 import { useSalesAuth } from "../../contexts/SalesAuthContext";
@@ -85,12 +86,17 @@ export default function SalesHome() {
             </div>
           </header>
 
-          {/* Top menu */}
-          <div className="bg-white rounded-3xl px-5 py-6 mx-0 shadow-[0_4px_20px_rgba(0,0,0,0.03)] flex justify-between items-center -mt-2">
+          {/* Top menu — grid 3 cols supaya 6 item muat 2 baris (mobile-friendly) */}
+          <div className="bg-white rounded-3xl px-5 py-6 mx-0 shadow-[0_4px_20px_rgba(0,0,0,0.03)] grid grid-cols-3 gap-y-5 -mt-2">
             <MenuItem
               onClick={() => navigate("/sales/order")}
               icon={<ShoppingBag className="w-7 h-7 text-[#B20605]" fill="#FECECE" />}
               label="Minta Barang"
+            />
+            <MenuItem
+              onClick={() => navigate("/sales/inbound")}
+              icon={<PackageOpen className="w-7 h-7 text-[#B20605]" fill="#FECECE" />}
+              label="Penerimaan Barang"
             />
             {/* Transaksi di-hide dari top grid — diakses dari bottom nav.
                 Approval di-hide — flow baru: customer order langsung ke
