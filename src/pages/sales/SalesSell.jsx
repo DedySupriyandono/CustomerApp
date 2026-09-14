@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Bell, Camera, X, Trash2, Scan,
@@ -9,6 +9,39 @@ import salesApi from "../../api/salesApi";
 import SalesBottomNav from "../../components/SalesBottomNav";
 import { rupiah } from "../../utils/format";
 import { qrExtract } from "../../utils/qrNormalize";
+
+// Row keranjang — di-memo supaya cart 17k+ item tidak re-render ulang
+// tiap parent update state lain (buyer name/phone, accordion, dsb).
+// Props diminimalkan (qr, productName, unitPrice) supaya shallow compare cepat.
+// Handler di parent WAJIB useCallback biar identity stabil antar render.
+const CartRow = memo(function CartRow({ qr, productName, unitPrice, onRemove, onPriceChange }) {
+  return (
+    <li className="py-2.5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="text-[13px] font-semibold text-[#1A0000] truncate">{productName}</div>
+          <div className="text-[11px] text-[#B20605]"><code>{qr}</code></div>
+        </div>
+        <button
+          onClick={() => onRemove(qr)}
+          aria-label="Hapus"
+          className="text-gray-400 hover:text-red-500"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="mt-1.5 flex items-center gap-2">
+        <span className="text-[11px] text-gray-500">Harga Jual</span>
+        <input
+          type="number"
+          value={unitPrice}
+          onChange={(e) => onPriceChange(qr, e.target.value)}
+          className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-[12px] text-right"
+        />
+      </div>
+    </li>
+  );
+});
 
 // Mirror Sell.jsx untuk customer — versi sales.
 // Sales scan SN dari stock-nya sendiri (yg di-receive saat SLO Selesai)
@@ -120,14 +153,16 @@ export default function SalesSell() {
     }
   }
 
-  function removeItem(qr) {
+  // useCallback biar identity handler stabil — kalau bikin arrow inline tiap
+  // render, memo CartRow kena bust karena onRemove/onPriceChange beda pointer.
+  const removeItem = useCallback((qr) => {
     setCart((prev) => prev.filter((x) => x.qr !== qr));
-  }
+  }, []);
 
-  function updatePrice(qr, val) {
+  const updatePrice = useCallback((qr, val) => {
     const num = Number(val) || 0;
     setCart((prev) => prev.map((x) => (x.qr === qr ? { ...x, unitPrice: num } : x)));
-  }
+  }, []);
 
   // Normalize input SN — strip URL wrapper + potong 15-digit fisik ke 12-digit
   // internal SN. Kalau tidak match pattern URL/15-digit → passthrough (SN dgn
@@ -281,7 +316,15 @@ export default function SalesSell() {
     beep(true);
   }
 
-  const cartTotal = cart.reduce((s, x) => s + Number(x.unitPrice || 0), 0);
+  // Memoize supaya keystroke buyer/toggle accordion tidak trigger reduce 17k row lagi.
+  const cartTotal = useMemo(
+    () => cart.reduce((s, x) => s + Number(x.unitPrice || 0), 0),
+    [cart]
+  );
+
+  // Set lookup — hindari cart.some(...) per SN di stock accordion body
+  // (O(n*m) = 17k*17k = 300M ops → freeze). Set.has = O(1).
+  const cartQrSet = useMemo(() => new Set(cart.map((c) => c.qr)), [cart]);
 
   async function startCamera() {
     if (camOn) return;
@@ -538,7 +581,7 @@ export default function SalesSell() {
                     {isOpen && (
                       <ul className="mt-2 space-y-1.5 pl-2">
                         {g.items.map((it) => {
-                          const inCart = cart.some((c) => c.qr === it.sn);
+                          const inCart = cartQrSet.has(it.sn);
                           return (
                             <li
                               key={it.sn}
@@ -577,34 +620,14 @@ export default function SalesSell() {
             ) : (
               <ul className="divide-y divide-gray-100">
                 {cart.map((it) => (
-                  <li key={it.qr} className="py-2.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[13px] font-semibold text-[#1A0000] truncate">
-                          {it.productName}
-                        </div>
-                        <div className="text-[11px] text-[#B20605]">
-                          <code>{it.qr}</code>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => removeItem(it.qr)}
-                        aria-label="Hapus"
-                        className="text-gray-400 hover:text-red-500"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <span className="text-[11px] text-gray-500">Harga Jual</span>
-                      <input
-                        type="number"
-                        value={it.unitPrice}
-                        onChange={(e) => updatePrice(it.qr, e.target.value)}
-                        className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-[12px] text-right"
-                      />
-                    </div>
-                  </li>
+                  <CartRow
+                    key={it.qr}
+                    qr={it.qr}
+                    productName={it.productName}
+                    unitPrice={it.unitPrice}
+                    onRemove={removeItem}
+                    onPriceChange={updatePrice}
+                  />
                 ))}
               </ul>
             )}
