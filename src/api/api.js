@@ -15,7 +15,8 @@ const resolveBaseUrl = () => {
   return "https://api-golden.modoto.net/api";
 };
 
-const api = axios.create({ baseURL: resolveBaseUrl() });
+const baseURL = resolveBaseUrl();
+const api = axios.create({ baseURL });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
@@ -25,15 +26,52 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// ── Auto-refresh access token pada 401 ──
+// Access token TTL default 15 menit. Tanpa refresh flow, user "gampang logout".
+// Backend endpoint: POST /customer/refresh dgn body { refreshToken }.
+// Concurrent-safe: 1 in-flight promise, sisanya menunggu.
+let refreshPromise = null;
+function forceCustomerLogout() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("refreshExpiresAt");
+  localStorage.removeItem("user");
+  if (location.pathname !== "/login") location.href = "/login";
+}
+
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      if (location.pathname !== "/login") location.href = "/login";
+  async (err) => {
+    const original = err.config || {};
+    const status   = err.response?.status;
+    if (status !== 401 || original._retriedAuth) return Promise.reject(err);
+
+    const refreshToken = localStorage.getItem("refreshToken");
+    if (!refreshToken) { forceCustomerLogout(); return Promise.reject(err); }
+    if ((original.url || "").endsWith("/customer/refresh")) { forceCustomerLogout(); return Promise.reject(err); }
+
+    original._retriedAuth = true;
+    try {
+      if (!refreshPromise) {
+        refreshPromise = axios.post(`${baseURL}/customer/refresh`, { refreshToken })
+          .then((r) => {
+            const d = r.data || {};
+            if (!d.token) throw new Error("refresh: no token");
+            localStorage.setItem("token", d.token);
+            if (d.refreshToken) localStorage.setItem("refreshToken", d.refreshToken);
+            if (d.refreshExpiresAt) localStorage.setItem("refreshExpiresAt", d.refreshExpiresAt);
+            return d.token;
+          })
+          .finally(() => { refreshPromise = null; });
+      }
+      const newToken = await refreshPromise;
+      original.headers = original.headers || {};
+      original.headers.Authorization = `G0l3d3nUat ${newToken}`;
+      return api(original);
+    } catch (e) {
+      forceCustomerLogout();
+      return Promise.reject(err);
     }
-    return Promise.reject(err);
   }
 );
 

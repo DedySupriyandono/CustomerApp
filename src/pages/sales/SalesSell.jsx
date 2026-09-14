@@ -195,104 +195,63 @@ export default function SalesSell() {
     return { list, error: null };
   }
 
+  // SMART range scan — server filter SN yg SF pegang Available dalam range
+  // (WHERE sales_force_id=me AND SN BETWEEN start AND end AND status=Available).
+  // Client cuma kirim {startSn, endSn} → 1 HTTP call, tanpa enumerate 100rb SN,
+  // tanpa cap RANGE_MAX. Cocok utk voucher 12+ digit yg range antar SN
+  // bisa jutaan. Server extract SN dari URL provider via qr_pattern.
   async function doScanRange() {
-    const { list, error } = generateSnRange(rangeFrom, rangeTo);
-    if (error) {
-      setRangeKind("err");
-      setRangeMsg(error);
-      beep(false);
-      return;
-    }
-    // Dedup vs cart (SN yg sudah di keranjang di-skip di client, tidak
-    // dikirim ke server — irit payload).
-    const inCart = new Set(cart.map((x) => x.qr));
-    const toSend = list.filter((sn) => !inCart.has(sn));
-    if (toSend.length === 0) {
-      setRangeKind("err");
-      setRangeMsg(`Semua ${list.length} SN sudah di keranjang.`);
-      beep(false);
+    if (!rangeFrom.trim() || !rangeTo.trim()) {
+      setRangeKind("err"); setRangeMsg("SN Awal & Akhir wajib."); beep(false);
       return;
     }
 
     setRangeBusy(true);
     setRangeKind("");
-    setRangeProgress({ done: 0, total: toSend.length });
-    setRangeMsg(`Memvalidasi ${toSend.length} SN…`);
-
-    // Chunk client-side supaya:
-    //   1. Payload per request tetap kecil (100 SN ≈ 1-2 KB) → hindari
-    //      request body limit / lambat di mobile network.
-    //   2. Progress bar bisa update per chunk — user liat kemajuan real.
-    //   3. Kalau 1 chunk error, batch sebelumnya sudah masuk cart → tidak
-    //      hilang semua kalau network kejeblak di tengah.
-    const chunks = [];
-    for (let i = 0; i < toSend.length; i += CHUNK_SIZE) {
-      chunks.push(toSend.slice(i, i + CHUNK_SIZE));
-    }
-
-    const allAdded   = [];
-    const allSkipped = [];
-    let doneCount    = 0;
-    let errorMsg     = null;
+    setRangeProgress({ done: 0, total: 0 });
+    setRangeMsg("Filter database…");
 
     try {
-      for (let ci = 0; ci < chunks.length; ci++) {
-        const chunk = chunks[ci];
-        try {
-          const r = await salesApi.post("/sales/sell/scan-range", { sns: chunk });
-          const added   = r.data?.added   || [];
-          const skipped = r.data?.skipped || [];
-          allAdded.push(...added);
-          allSkipped.push(...skipped);
-
-          // Merge langsung ke cart per chunk — user liat cart bertambah
-          // real-time, bukan nunggu semua chunk selesai baru render.
-          if (added.length > 0) {
-            setCart((prev) => [
-              ...prev,
-              ...added.map((it) => ({
-                qr: it.sn, productId: it.productId,
-                productName: it.productName || `Product #${it.productId}`,
-                productNumber: it.productNumber,
-                unitPrice: Number(it.unitPrice || 0),
-              })),
-            ]);
-          }
-        } catch (chunkErr) {
-          // Chunk gagal — catat error tapi lanjut chunk berikut supaya
-          // sebagian data masih tersimpan. Kalau gagal semua → ditangani
-          // di summary akhir.
-          const chunkFailMsg = chunkErr.response?.data?.message || "Server error";
-          errorMsg = `Chunk ${ci + 1}/${chunks.length} gagal: ${chunkFailMsg}`;
-          allSkipped.push(
-            ...chunk.map((sn) => ({ sn, reason: "chunk-failed" }))
-          );
-        }
-        doneCount += chunk.length;
-        setRangeProgress({ done: doneCount, total: toSend.length });
+      const r = await salesApi.post("/sales/sell/scan-range-smart", {
+        startSn: rangeFrom.trim(),
+        endSn:   rangeTo.trim(),
+      });
+      const data = r.data || {};
+      if (!data.success) {
+        setRangeKind("err");
+        setRangeMsg(data.message || "Gagal validasi range.");
+        beep(false);
+        return;
       }
 
-      // Summary — tampilkan agregat dari semua chunk.
-      const inCartSkip = list.length - toSend.length;
-      let summary = `✓ ${allAdded.length} SN ditambah`;
-      if (allSkipped.length > 0) {
-        const byReason = allSkipped.reduce((acc, s) => {
-          acc[s.reason] = (acc[s.reason] || 0) + 1; return acc;
-        }, {});
-        const reasons = Object.entries(byReason)
-          .map(([k, v]) => `${v} ${k}`).join(", ");
-        summary += ` · ${allSkipped.length} skip (${reasons})`;
+      // Dedup vs cart client-side (server tidak tahu isi cart)
+      const inCart = new Set(cart.map((x) => x.qr));
+      const added  = (data.added || []).filter((it) => !inCart.has(it.sn));
+      const inCartSkip = (data.added || []).length - added.length;
+
+      if (added.length > 0) {
+        setCart((prev) => [
+          ...prev,
+          ...added.map((it) => ({
+            qr: it.sn, productId: it.productId,
+            productName: it.productName || `Product #${it.productId}`,
+            productNumber: it.productNumber,
+            unitPrice: Number(it.unitPrice || 0),
+          })),
+        ]);
       }
+
+      let summary = `✓ ${added.length} SN ditambah dari ${data.summary?.totalFound ?? added.length} SN milik Anda dalam range`;
       if (inCartSkip > 0) summary += ` · ${inCartSkip} sudah di keranjang`;
-      if (errorMsg) summary += `  [${errorMsg}]`;
-      setRangeKind(allAdded.length > 0 ? "ok" : "err");
+      setRangeKind(added.length > 0 ? "ok" : "err");
       setRangeMsg(summary);
-      beep(allAdded.length > 0);
-      if (allAdded.length > 0) { setRangeFrom(""); setRangeTo(""); }
+      beep(added.length > 0);
+      if (added.length > 0) { setRangeFrom(""); setRangeTo(""); }
+    } catch (err) {
+      const msg = err.response?.data?.message || "Server error";
+      setRangeKind("err"); setRangeMsg(`Gagal: ${msg}`); beep(false);
     } finally {
       setRangeBusy(false);
-      // Reset progress state setelah animasi selesai (progress bar hilang).
-      setTimeout(() => setRangeProgress({ done: 0, total: 0 }), 1500);
     }
   }
 
@@ -481,7 +440,7 @@ export default function SalesSell() {
               <div className="font-bold text-[#1A0000] text-[14px] flex items-center gap-1.5">
                 <Layers className="w-4 h-4 text-[#B20605]" /> Scan Range
               </div>
-              <div className="text-[11px] text-gray-400">max {RANGE_MAX}</div>
+              <div className="text-[11px] text-gray-400">smart · tanpa batas</div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
@@ -509,48 +468,15 @@ export default function SalesSell() {
                 />
               </div>
             </div>
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <div className="text-[11px] flex-1 min-w-0 truncate">
-                {rangePreview?.error && (
-                  <span className="text-red-600">⚠ {rangePreview.error}</span>
-                )}
-                {rangePreview?.count > 0 && (
-                  <span className="text-gray-600">
-                    Akan validasi <b>{rangePreview.count}</b> SN
-                  </span>
-                )}
-              </div>
+            <div className="mt-2 flex items-center justify-end gap-2">
               <button
                 onClick={doScanRange}
-                disabled={rangeBusy || !rangeFrom.trim() || !rangeTo.trim() || rangePreview?.error}
+                disabled={rangeBusy || !rangeFrom.trim() || !rangeTo.trim()}
                 className="bg-[#B20605] text-white text-[13px] font-semibold px-4 py-2 rounded-lg disabled:opacity-50 shrink-0"
               >
-                {rangeBusy ? "…" : "Scan Range"}
+                {rangeBusy ? "Memproses…" : "Scan Range"}
               </button>
             </div>
-
-            {/* Progress bar — muncul selagi chunk berjalan. Percentage
-                dihitung dari doneCount vs total SN yg dikirim ke server. */}
-            {rangeProgress.total > 0 && (
-              <div className="mt-2">
-                <div className="flex items-center justify-between text-[11px] text-gray-600 mb-1">
-                  <span>Progress</span>
-                  <span>
-                    <b>{rangeProgress.done}</b> / {rangeProgress.total} SN
-                    {" · "}
-                    {Math.round((rangeProgress.done / rangeProgress.total) * 100)}%
-                  </span>
-                </div>
-                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-[#B20605] transition-all duration-200 ease-out"
-                    style={{
-                      width: `${Math.min(100, (rangeProgress.done / rangeProgress.total) * 100)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            )}
 
             {rangeMsg && (
               <div

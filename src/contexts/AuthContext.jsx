@@ -12,6 +12,10 @@ export function AuthProvider({ children }) {
   const login = async (phone, password) => {
     const { data } = await api.post("/customer/login", { phone, password });
     localStorage.setItem("token", data.token);
+    // Refresh token wajib disimpan — dipakai api.js interceptor untuk
+    // auto-refresh saat access token expired (default 15 menit).
+    if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
+    if (data.refreshExpiresAt) localStorage.setItem("refreshExpiresAt", data.refreshExpiresAt);
     localStorage.setItem("user", JSON.stringify(data));
     setUser(data);
     return data;
@@ -19,6 +23,8 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("refreshExpiresAt");
     localStorage.removeItem("user");
     setUser(null);
   };

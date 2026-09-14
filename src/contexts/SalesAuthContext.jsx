@@ -40,6 +40,11 @@ export function SalesAuthProvider({ children }) {
     if (prevId != null && prevId !== data?.id) clearSalesCartStorage();
 
     localStorage.setItem("salesToken", data.token);
+    // Simpan refresh token — dipakai salesApi interceptor untuk auto-refresh
+    // saat access token expired (default TTL 15 menit). Tanpa ini user
+    // dilempar ke /sales/login tiap 15 menit walau lagi aktif.
+    if (data.refreshToken) localStorage.setItem("salesRefreshToken", data.refreshToken);
+    if (data.refreshExpiresAt) localStorage.setItem("salesRefreshExpiresAt", data.refreshExpiresAt);
     localStorage.setItem("salesUser", JSON.stringify(data));
     setSales(data);
     return data;
@@ -47,6 +52,8 @@ export function SalesAuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem("salesToken");
+    localStorage.removeItem("salesRefreshToken");
+    localStorage.removeItem("salesRefreshExpiresAt");
     localStorage.removeItem("salesUser");
     clearSalesCartStorage();
     setSales(null);
