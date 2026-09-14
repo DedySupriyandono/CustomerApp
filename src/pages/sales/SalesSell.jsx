@@ -32,11 +32,15 @@ const CartRow = memo(function CartRow({ qr, productName, unitPrice, onRemove, on
       </div>
       <div className="mt-1.5 flex items-center gap-2">
         <span className="text-[11px] text-gray-500">Harga Jual</span>
+        {/* Server-authoritative pricing — snapshot per-SN dari sales_stock_values.sales_price.
+            SF tidak boleh edit di klien; Sell POST ignore client UnitPrice. Readonly di UI
+            biar konsisten dgn kontrak backend. */}
         <input
           type="number"
           value={unitPrice}
-          onChange={(e) => onPriceChange(qr, e.target.value)}
-          className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-[12px] text-right"
+          readOnly
+          tabIndex={-1}
+          className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-[12px] text-right bg-gray-50 text-gray-600 cursor-not-allowed"
         />
       </div>
     </li>
