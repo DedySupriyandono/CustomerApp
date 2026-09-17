@@ -33,15 +33,15 @@ const CartRow = memo(function CartRow({ qr, productName, unitPrice, onRemove, on
       </div>
       <div className="mt-1.5 flex items-center gap-2">
         <span className="text-[11px] text-gray-500">Harga Jual</span>
-        {/* Server-authoritative pricing — snapshot per-SN dari sales_stock_values.sales_price.
-            SF tidak boleh edit di klien; Sell POST ignore client UnitPrice. Readonly di UI
-            biar konsisten dgn kontrak backend. */}
+        {/* SF boleh override harga (bebas > 0). Server log ke sales_price_overrides
+            + update SSV.SalesPrice. MasterSalesPrice tetap snapshot immutable. */}
         <input
           type="number"
           value={unitPrice}
-          readOnly
-          tabIndex={-1}
-          className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-[12px] text-right bg-gray-50 text-gray-600 cursor-not-allowed"
+          min="1"
+          step="1"
+          onChange={(e) => onPriceChange(qr, e.target.value)}
+          className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-[12px] text-right"
         />
       </div>
     </li>
@@ -76,12 +76,15 @@ export default function SalesSell() {
   // restart. Auto-clear di 3 titik: (1) sell sukses, (2) user logout, (3) user
   // login ulang (di SalesAuthContext). Key per user_id → cart user A tidak
   // nyangkut saat user B login di device sama.
-  const STORAGE_KEY = `sales_sell_state_v1_${sales?.id ?? "anon"}`;
+  // sales object dari SalesAuthContext punya field `userId` (server SalesAuthResponse.UserId),
+  // bukan `id` — check exact field name via `console.log(sales)` kalau berubah.
+  const salesUid = sales?.userId ?? sales?.id ?? "anon";
+  const STORAGE_KEY = `sales_sell_state_v1_${salesUid}`;
   const hydratedRef = useRef(false); // skip save saat first load (belum hydrated)
 
   // Cross-tab claims — cegah SN sama dipakai di 2 tab (localStorage shared antar
   // tab origin sama). Tiap tab punya TAB_ID unik → tahu "claim ini punya siapa".
-  const CLAIMS_KEY = `sales_sell_claims_v1_${sales?.id ?? "anon"}`;
+  const CLAIMS_KEY = `sales_sell_claims_v1_${salesUid}`;
   const tabIdRef = useRef(Math.random().toString(36).slice(2) + Date.now().toString(36));
   const readClaims = () => {
     try { return JSON.parse(localStorage.getItem(CLAIMS_KEY) || "{}"); } catch { return {}; }
@@ -147,7 +150,7 @@ export default function SalesSell() {
       window.removeEventListener("beforeunload", onBeforeUnload);
       unclaimAllMine();
     };
-  }, [sales?.id]);
+  }, [salesUid]);
 
   // Hydrate cart+buyer dari sessionStorage saat mount / saat user_id berubah
   // (login akun beda di device sama → reset ke state kosong + load key user baru).
@@ -196,7 +199,7 @@ export default function SalesSell() {
       }
     })();
     return () => { cancelled = true; };
-  }, [sales?.id]);
+  }, [salesUid]);
 
   useEffect(() => {
     if (!hydratedRef.current) { console.log("[sell-cart] save: SKIP (not hydrated yet)", { cartLen: cart.length }); return; }
@@ -292,7 +295,7 @@ export default function SalesSell() {
   const removeItem = useCallback((qr) => {
     setCart((prev) => prev.filter((x) => x.qr !== qr));
     unclaimSn(qr);
-  }, [sales?.id]);
+  }, [salesUid]);
 
   const updatePrice = useCallback((qr, val) => {
     const num = Number(val) || 0;
@@ -513,6 +516,12 @@ export default function SalesSell() {
   async function submit() {
     if (cart.length === 0) {
       alert("Keranjang kosong. Scan/tap SN dari stok dulu.");
+      return;
+    }
+    // Guard harga: semua item wajib > 0 (SF bebas set nilai apapun asal > 0).
+    const badIdx = cart.findIndex((x) => !(Number(x.unitPrice) > 0));
+    if (badIdx >= 0) {
+      alert(`SN ${cart[badIdx].qr}: harga jual harus > 0.`);
       return;
     }
     if (!window.confirm(`Konfirmasi jual ${cart.length} item senilai ${rupiah(cartTotal)}?`)) return;
