@@ -20,24 +20,28 @@ export function SalesAuthProvider({ children }) {
   // Cart/warehouse selection di SalesCartContext disimpan di localStorage
   // — kalau user berubah (ganti login), state lama harus dibersihkan supaya
   // tidak "stuck" pakai warehouse / cart milik user sebelumnya.
+  // Termasuk juga sell cart di SalesSell (key `sales_sell_state_v1_*` +
+  // `sales_sell_claims_v1_*`) — scan prefix + hapus semua, biar orphan cart
+  // user lain di device sama juga bersih.
   const clearSalesCartStorage = () => {
     try {
       localStorage.removeItem("salesCart");
       localStorage.removeItem("salesCartWarehouse");
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith("sales_sell_state_v1_") || k.startsWith("sales_sell_claims_v1_"))) {
+          localStorage.removeItem(k);
+        }
+      }
     } catch {}
   };
 
   const login = async (username, password) => {
     const { data } = await axios.post(`${baseURL}/sales/login`, { username, password });
 
-    // Deteksi ganti user. Bandingkan sales.id sebelum overwrite — beda user
-    // → wajib clear cart + warehouse selection.
-    let prevId = null;
-    try {
-      const prevRaw = localStorage.getItem("salesUser");
-      if (prevRaw) prevId = JSON.parse(prevRaw)?.id ?? null;
-    } catch {}
-    if (prevId != null && prevId !== data?.id) clearSalesCartStorage();
+    // Selalu clear sell cart tiap login (bahkan re-login user sama) — start
+    // fresh setiap shift kerja. Sell cart tidak boleh nyangkut lintas login.
+    clearSalesCartStorage();
 
     localStorage.setItem("salesToken", data.token);
     // Simpan refresh token — dipakai salesApi interceptor untuk auto-refresh

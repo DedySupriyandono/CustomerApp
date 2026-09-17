@@ -72,9 +72,10 @@ export default function SalesSell() {
   const [expanded, setExpanded] = useState({});
   const [groupSearch, setGroupSearch] = useState({}); // per-productId search filter
 
-  // Session-scope persist — cart + buyer survive refresh dalam session yg sama.
-  // Ditutup tab = fresh (cegah stale SN yg mungkin sudah dijual di device lain).
-  // Key per user_id → cart user A tidak nyangkut saat user B login di device sama.
+  // Persist cart + buyer di localStorage — survive refresh, tab close, browser
+  // restart. Auto-clear di 3 titik: (1) sell sukses, (2) user logout, (3) user
+  // login ulang (di SalesAuthContext). Key per user_id → cart user A tidak
+  // nyangkut saat user B login di device sama.
   const STORAGE_KEY = `sales_sell_state_v1_${sales?.id ?? "anon"}`;
   const hydratedRef = useRef(false); // skip save saat first load (belum hydrated)
 
@@ -158,7 +159,7 @@ export default function SalesSell() {
     setCart([]); setBuyerName(""); setBuyerPhone(""); // reset dulu (cegah cart user lama tercampur)
     (async () => {
       try {
-        const raw = sessionStorage.getItem(STORAGE_KEY);
+        const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
           const s = JSON.parse(raw);
           if (s && Array.isArray(s.cart) && s.cart.length > 0) {
@@ -180,7 +181,7 @@ export default function SalesSell() {
           if (s && typeof s.buyerPhone === "string") setBuyerPhone(s.buyerPhone);
         }
       } catch (e) {
-        try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+        try { localStorage.removeItem(STORAGE_KEY); } catch {}
       } finally {
         if (!cancelled) hydratedRef.current = true;
       }
@@ -192,7 +193,7 @@ export default function SalesSell() {
   useEffect(() => {
     if (!hydratedRef.current) return;
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ cart, buyerName, buyerPhone }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ cart, buyerName, buyerPhone }));
     } catch {}
   }, [cart, buyerName, buyerPhone]);
 
@@ -514,7 +515,7 @@ export default function SalesSell() {
         await stopCamera();
         alert(`${r.data.message}\nTotal: ${rupiah(r.data.totalAmount)}`);
         setCart([]); setBuyerName(""); setBuyerPhone("");
-        try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+        try { localStorage.removeItem(STORAGE_KEY); } catch {}
         unclaimAllMine();
         setStatusKind(""); setStatusMsg("");
         loadStock();
