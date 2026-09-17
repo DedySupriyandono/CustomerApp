@@ -153,48 +153,61 @@ export default function SalesSell() {
   // (login akun beda di device sama → reset ke state kosong + load key user baru).
   // Re-validate tiap SN (silent — SN yg sudah tidak Available auto-remove).
   useEffect(() => {
-    if (!sales?.id) return; // tunggu user siap
+    if (!sales?.id) { console.log("[sell-cart] hydrate: skip, no sales.id"); return; }
+    console.log("[sell-cart] hydrate: START sales.id=", sales.id, "key=", STORAGE_KEY);
     let cancelled = false;
-    hydratedRef.current = false;   // freeze save selama re-hydrate
-    setCart([]); setBuyerName(""); setBuyerPhone(""); // reset dulu (cegah cart user lama tercampur)
+    hydratedRef.current = false;
+    setCart([]); setBuyerName(""); setBuyerPhone("");
     (async () => {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
+        console.log("[sell-cart] hydrate: raw from localStorage =", raw);
         if (raw) {
           const s = JSON.parse(raw);
+          console.log("[sell-cart] hydrate: parsed", { cartLen: s?.cart?.length, buyerName: s?.buyerName, buyerPhone: s?.buyerPhone });
           if (s && Array.isArray(s.cart) && s.cart.length > 0) {
             const results = await Promise.all(
               s.cart.map((it) =>
                 salesApi
                   .get("/sales/sell/check", { params: { qr: it.qr } })
-                  .then((r) => (r.data?.success ? { ...it, unitPrice: Number(r.data.item.unitPrice || it.unitPrice || 0) } : null))
-                  .catch(() => null)
+                  .then((r) => {
+                    console.log("[sell-cart] hydrate: check", it.qr, "→", r.data?.success ? "OK" : "REMOVED:", r.data?.message);
+                    return r.data?.success ? { ...it, unitPrice: Number(r.data.item.unitPrice || it.unitPrice || 0) } : null;
+                  })
+                  .catch((err) => { console.warn("[sell-cart] hydrate: check FAIL", it.qr, err?.response?.status, err?.message); return null; })
               )
             );
+            const valid = results.filter(Boolean);
+            console.log("[sell-cart] hydrate: validated", valid.length, "/", s.cart.length, "SN survived");
             if (!cancelled) {
-              const valid = results.filter(Boolean);
               setCart(valid);
-              claimMany(valid.map((x) => x.qr)); // re-claim setelah refresh
+              claimMany(valid.map((x) => x.qr));
             }
           }
           if (s && typeof s.buyerName === "string") setBuyerName(s.buyerName);
           if (s && typeof s.buyerPhone === "string") setBuyerPhone(s.buyerPhone);
+        } else {
+          console.log("[sell-cart] hydrate: no saved cart");
         }
       } catch (e) {
+        console.error("[sell-cart] hydrate: EXCEPTION", e);
         try { localStorage.removeItem(STORAGE_KEY); } catch {}
       } finally {
-        if (!cancelled) hydratedRef.current = true;
+        if (!cancelled) { hydratedRef.current = true; console.log("[sell-cart] hydrate: DONE, hydratedRef=true"); }
       }
     })();
     return () => { cancelled = true; };
   }, [sales?.id]);
 
-  // Persist cart+buyer setiap ada perubahan (skip sebelum hydrate selesai).
   useEffect(() => {
-    if (!hydratedRef.current) return;
+    if (!hydratedRef.current) { console.log("[sell-cart] save: SKIP (not hydrated yet)", { cartLen: cart.length }); return; }
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ cart, buyerName, buyerPhone }));
-    } catch {}
+      const payload = JSON.stringify({ cart, buyerName, buyerPhone });
+      localStorage.setItem(STORAGE_KEY, payload);
+      console.log("[sell-cart] save: OK key=", STORAGE_KEY, "cartLen=", cart.length, "bytes=", payload.length);
+    } catch (e) {
+      console.error("[sell-cart] save: FAIL", e);
+    }
   }, [cart, buyerName, buyerPhone]);
 
   function beep(ok) {
