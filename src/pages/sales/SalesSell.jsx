@@ -153,8 +153,7 @@ export default function SalesSell() {
   // (login akun beda di device sama → reset ke state kosong + load key user baru).
   // Re-validate tiap SN (silent — SN yg sudah tidak Available auto-remove).
   useEffect(() => {
-    if (!sales?.id) { console.log("[sell-cart] hydrate: skip, no sales.id"); return; }
-    console.log("[sell-cart] hydrate: START sales.id=", sales.id, "key=", STORAGE_KEY);
+    console.log("[sell-cart] hydrate: START sales=", sales, "key=", STORAGE_KEY);
     let cancelled = false;
     hydratedRef.current = false;
     setCart([]); setBuyerName(""); setBuyerPhone("");
