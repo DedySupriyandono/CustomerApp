@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
 import salesApi from "../../api/salesApi";
+import { useSalesAuth } from "../../contexts/SalesAuthContext";
 import SalesBottomNav from "../../components/SalesBottomNav";
 import { rupiah } from "../../utils/format";
 import { qrExtract } from "../../utils/qrNormalize";
@@ -52,6 +53,7 @@ const CartRow = memo(function CartRow({ qr, productName, unitPrice, onRemove, on
 // lalu jual ke pembeli. SN dipake "tap" dari list atau scan kamera.
 export default function SalesSell() {
   const navigate = useNavigate();
+  const { sales } = useSalesAuth();
 
   const [cart, setCart] = useState([]);
   const [manualQr, setManualQr] = useState("");
@@ -68,6 +70,40 @@ export default function SalesSell() {
   const [stockLoading, setStockLoading] = useState(true);
   const [stockErr, setStockErr] = useState("");
   const [expanded, setExpanded] = useState({});
+  const [groupSearch, setGroupSearch] = useState({}); // per-productId search filter
+
+  // Session-scope persist — cart + buyer survive refresh dalam session yg sama.
+  // Ditutup tab = fresh (cegah stale SN yg mungkin sudah dijual di device lain).
+  // Key per user_id → cart user A tidak nyangkut saat user B login di device sama.
+  const STORAGE_KEY = `sales_sell_state_v1_${sales?.id ?? "anon"}`;
+  const hydratedRef = useRef(false); // skip save saat first load (belum hydrated)
+
+  // Cross-tab claims — cegah SN sama dipakai di 2 tab (localStorage shared antar
+  // tab origin sama). Tiap tab punya TAB_ID unik → tahu "claim ini punya siapa".
+  const CLAIMS_KEY = `sales_sell_claims_v1_${sales?.id ?? "anon"}`;
+  const tabIdRef = useRef(Math.random().toString(36).slice(2) + Date.now().toString(36));
+  const readClaims = () => {
+    try { return JSON.parse(localStorage.getItem(CLAIMS_KEY) || "{}"); } catch { return {}; }
+  };
+  const writeClaims = (obj) => {
+    try { localStorage.setItem(CLAIMS_KEY, JSON.stringify(obj)); } catch {}
+  };
+  const claimSn = (qr) => { const c = readClaims(); c[qr] = tabIdRef.current; writeClaims(c); };
+  const claimMany = (qrs) => {
+    const c = readClaims(); qrs.forEach((q) => { c[q] = tabIdRef.current; }); writeClaims(c);
+  };
+  const unclaimSn = (qr) => {
+    const c = readClaims(); if (c[qr] === tabIdRef.current) { delete c[qr]; writeClaims(c); }
+  };
+  const unclaimAllMine = () => {
+    const c = readClaims();
+    for (const q of Object.keys(c)) if (c[q] === tabIdRef.current) delete c[q];
+    writeClaims(c);
+  };
+  const isClaimedByOther = (qr) => {
+    const c = readClaims();
+    return c[qr] && c[qr] !== tabIdRef.current;
+  };
 
   // Scan Range state — bulk add SN dari From..To (max 1000 per batch).
   // Untuk voucher/kartu perdana yg SN-nya sequential numeric — cepat drpd
@@ -101,6 +137,65 @@ export default function SalesSell() {
     };
   }, []);
 
+  // Cleanup claims saat tab ditutup / component unmount — supaya SN tidak
+  // "nyangkut" di localStorage kalau tab crash / user tutup tanpa jual.
+  useEffect(() => {
+    const onBeforeUnload = () => unclaimAllMine();
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      unclaimAllMine();
+    };
+  }, [sales?.id]);
+
+  // Hydrate cart+buyer dari sessionStorage saat mount / saat user_id berubah
+  // (login akun beda di device sama → reset ke state kosong + load key user baru).
+  // Re-validate tiap SN (silent — SN yg sudah tidak Available auto-remove).
+  useEffect(() => {
+    if (!sales?.id) return; // tunggu user siap
+    let cancelled = false;
+    hydratedRef.current = false;   // freeze save selama re-hydrate
+    setCart([]); setBuyerName(""); setBuyerPhone(""); // reset dulu (cegah cart user lama tercampur)
+    (async () => {
+      try {
+        const raw = sessionStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const s = JSON.parse(raw);
+          if (s && Array.isArray(s.cart) && s.cart.length > 0) {
+            const results = await Promise.all(
+              s.cart.map((it) =>
+                salesApi
+                  .get("/sales/sell/check", { params: { qr: it.qr } })
+                  .then((r) => (r.data?.success ? { ...it, unitPrice: Number(r.data.item.unitPrice || it.unitPrice || 0) } : null))
+                  .catch(() => null)
+              )
+            );
+            if (!cancelled) {
+              const valid = results.filter(Boolean);
+              setCart(valid);
+              claimMany(valid.map((x) => x.qr)); // re-claim setelah refresh
+            }
+          }
+          if (s && typeof s.buyerName === "string") setBuyerName(s.buyerName);
+          if (s && typeof s.buyerPhone === "string") setBuyerPhone(s.buyerPhone);
+        }
+      } catch (e) {
+        try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+      } finally {
+        if (!cancelled) hydratedRef.current = true;
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [sales?.id]);
+
+  // Persist cart+buyer setiap ada perubahan (skip sebelum hydrate selesai).
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ cart, buyerName, buyerPhone }));
+    } catch {}
+  }, [cart, buyerName, buyerPhone]);
+
   function beep(ok) {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -126,6 +221,12 @@ export default function SalesSell() {
       beep(false);
       return;
     }
+    if (isClaimedByOther(c)) {
+      setStatusKind("err");
+      setStatusMsg(`SN ${c} sudah dipakai di tab/sesi lain.`);
+      beep(false);
+      return;
+    }
     setBusy(true);
     setStatusKind("");
     setStatusMsg(`Memvalidasi ${c}…`);
@@ -138,12 +239,28 @@ export default function SalesSell() {
         return;
       }
       const it = r.data.item;
-      setCart((prev) => [...prev, {
-        qr: it.sn, productId: it.productId,
-        productName: it.productName || `Product #${it.productId}`,
-        productNumber: it.productNumber,
-        unitPrice: Number(it.unitPrice || 0),
-      }]);
+      let added = true;
+      // Race guard: check claims sekali lagi (tab lain mungkin claim di sela-sela check).
+      if (isClaimedByOther(it.sn)) {
+        setStatusKind("err"); setStatusMsg(`SN ${it.sn} sudah dipakai di tab/sesi lain.`);
+        beep(false); return;
+      }
+      // Functional dedupe — kalau 2 scan kamera concurrent utk SN sama,
+      // setter kedua lihat prev sudah ada → skip. Cegah bug double-add.
+      setCart((prev) => {
+        if (prev.some((x) => x.qr === it.sn)) { added = false; return prev; }
+        return [...prev, {
+          qr: it.sn, productId: it.productId,
+          productName: it.productName || `Product #${it.productId}`,
+          productNumber: it.productNumber,
+          unitPrice: Number(it.unitPrice || 0),
+        }];
+      });
+      if (!added) {
+        setStatusKind("err"); setStatusMsg(`SN ${it.sn} sudah di keranjang.`);
+        beep(false); return;
+      }
+      claimSn(it.sn);
       setStatusKind("ok");
       setStatusMsg(`✓ ${c} ditambah ke keranjang.`);
       setManualQr("");
@@ -161,7 +278,8 @@ export default function SalesSell() {
   // render, memo CartRow kena bust karena onRemove/onPriceChange beda pointer.
   const removeItem = useCallback((qr) => {
     setCart((prev) => prev.filter((x) => x.qr !== qr));
-  }, []);
+    unclaimSn(qr);
+  }, [sales?.id]);
 
   const updatePrice = useCallback((qr, val) => {
     const num = Number(val) || 0;
@@ -265,23 +383,31 @@ export default function SalesSell() {
 
       // Dedup vs cart client-side (server tidak tahu isi cart)
       const inCart = new Set(cart.map((x) => x.qr));
-      const added  = (data.added || []).filter((it) => !inCart.has(it.sn));
-      const inCartSkip = (data.added || []).length - added.length;
+      const rawAdded = (data.added || []).filter((it) => !inCart.has(it.sn));
+      const otherTabSkip = rawAdded.filter((it) => isClaimedByOther(it.sn)).length;
+      const added  = rawAdded.filter((it) => !isClaimedByOther(it.sn));
+      const inCartSkip = (data.added || []).length - rawAdded.length;
 
       if (added.length > 0) {
-        setCart((prev) => [
-          ...prev,
-          ...added.map((it) => ({
-            qr: it.sn, productId: it.productId,
-            productName: it.productName || `Product #${it.productId}`,
-            productNumber: it.productNumber,
-            unitPrice: Number(it.unitPrice || 0),
-          })),
-        ]);
+        setCart((prev) => {
+          const prevSet = new Set(prev.map((x) => x.qr));
+          const fresh = added
+            .filter((it) => !prevSet.has(it.sn))
+            .map((it) => ({
+              qr: it.sn, productId: it.productId,
+              productName: it.productName || `Product #${it.productId}`,
+              productNumber: it.productNumber,
+              unitPrice: Number(it.unitPrice || 0),
+            }));
+          if (fresh.length === 0) return prev;
+          claimMany(fresh.map((x) => x.qr));
+          return [...prev, ...fresh];
+        });
       }
 
       let summary = `✓ ${added.length} SN ditambah dari ${data.summary?.totalFound ?? added.length} SN milik Anda dalam range`;
-      if (inCartSkip > 0) summary += ` · ${inCartSkip} sudah di keranjang`;
+      if (inCartSkip > 0)    summary += ` · ${inCartSkip} sudah di keranjang`;
+      if (otherTabSkip > 0)  summary += ` · ${otherTabSkip} dipakai di tab lain`;
       setRangeKind(added.length > 0 ? "ok" : "err");
       setRangeMsg(summary);
       beep(added.length > 0);
@@ -304,17 +430,25 @@ export default function SalesSell() {
   })();
 
   function addFromStock(sn, group) {
-    if (cart.some((x) => x.qr === sn)) {
-      setStatusKind("err");
-      setStatusMsg(`SN ${sn} sudah di keranjang.`);
+    if (isClaimedByOther(sn)) {
+      setStatusKind("err"); setStatusMsg(`SN ${sn} sudah dipakai di tab/sesi lain.`);
+      beep(false); return;
+    }
+    let added = true;
+    setCart((prev) => {
+      if (prev.some((x) => x.qr === sn)) { added = false; return prev; }
+      return [...prev, {
+        qr: sn, productId: group.productId,
+        productName: group.productName || `Product #${group.productId}`,
+        productNumber: group.productNumber,
+        unitPrice: Number(group.unitPrice || 0),
+      }];
+    });
+    if (!added) {
+      setStatusKind("err"); setStatusMsg(`SN ${sn} sudah di keranjang.`);
       return;
     }
-    setCart((prev) => [...prev, {
-      qr: sn, productId: group.productId,
-      productName: group.productName || `Product #${group.productId}`,
-      productNumber: group.productNumber,
-      unitPrice: Number(group.unitPrice || 0),
-    }]);
+    claimSn(sn);
     setStatusKind("ok");
     setStatusMsg(`✓ ${sn} ditambah.`);
     beep(true);
@@ -380,6 +514,8 @@ export default function SalesSell() {
         await stopCamera();
         alert(`${r.data.message}\nTotal: ${rupiah(r.data.totalAmount)}`);
         setCart([]); setBuyerName(""); setBuyerPhone("");
+        try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+        unclaimAllMine();
         setStatusKind(""); setStatusMsg("");
         loadStock();
       } else {
@@ -582,29 +718,49 @@ export default function SalesSell() {
                         )}
                       </div>
                     </button>
-                    {isOpen && (
-                      <ul className="mt-2 space-y-1.5 pl-2">
-                        {g.items.map((it) => {
-                          const inCart = cartQrSet.has(it.sn);
-                          return (
-                            <li
-                              key={it.sn}
-                              className="flex items-center justify-between gap-2 bg-[#FBF9F9] rounded-lg px-2.5 py-1.5"
-                            >
-                              <code className="text-[11px] text-[#B20605] truncate flex-1">{it.sn}</code>
-                              {/* Tombol "Jual" per-SN di-hide — flow jual sekarang
-                                  wajib via Scan QR/SN di atas (lebih konsisten
-                                  dgn proses fisik & cegah double-entry). */}
-                              {inCart && (
-                                <span className="text-[10px] font-semibold text-gray-400 shrink-0">
-                                  ✓ Di keranjang
-                                </span>
-                              )}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
+                    {isOpen && (() => {
+                      const q = (groupSearch[g.productId] || "").trim().toLowerCase();
+                      const filtered = q ? g.items.filter((it) => (it.sn || "").toLowerCase().includes(q)) : g.items;
+                      return (
+                        <>
+                          <input
+                            type="text"
+                            value={groupSearch[g.productId] || ""}
+                            onChange={(e) => setGroupSearch((p) => ({ ...p, [g.productId]: e.target.value }))}
+                            placeholder="Cari SN..."
+                            className="w-full mt-2 border border-gray-200 rounded-lg px-2.5 py-1.5 text-[12px]"
+                            inputMode="text"
+                            autoComplete="off"
+                          />
+                          {q && (
+                            <div className="text-[11px] text-gray-500 mt-1 px-1">
+                              {filtered.length} dari {g.items.length} SN
+                            </div>
+                          )}
+                          <ul className="mt-2 space-y-1.5 pl-2">
+                            {filtered.length === 0 && (
+                              <li className="text-[11px] text-gray-400 text-center py-2">Tidak ada SN cocok.</li>
+                            )}
+                            {filtered.map((it) => {
+                              const inCart = cartQrSet.has(it.sn);
+                              return (
+                                <li
+                                  key={it.sn}
+                                  className="flex items-center justify-between gap-2 bg-[#FBF9F9] rounded-lg px-2.5 py-1.5"
+                                >
+                                  <code className="text-[11px] text-[#B20605] truncate flex-1">{it.sn}</code>
+                                  {inCart && (
+                                    <span className="text-[10px] font-semibold text-gray-400 shrink-0">
+                                      ✓ Di keranjang
+                                    </span>
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </>
+                      );
+                    })()}
                   </li>
                 );
               })}
