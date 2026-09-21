@@ -92,6 +92,8 @@ export default function SalesHome() {
               onClick={() => navigate("/sales/order")}
               icon={<ShoppingBag className="w-7 h-7 text-[#B20605]" fill="#FECECE" />}
               label="Minta Barang"
+              disabled
+              disabledLabel="Minta Barang belum aktif"
             />
             <MenuItem
               onClick={() => navigate("/sales/inbound")}
@@ -191,11 +193,21 @@ export default function SalesHome() {
   );
 }
 
-function MenuItem({ icon, label, onClick }) {
+function MenuItem({ icon, label, onClick, disabled = false, disabledLabel }) {
   return (
-    <button onClick={onClick} className="flex flex-col items-center gap-2">
-      <div className="w-[62px] h-[62px] bg-[#FFF5F5] rounded-[18px] flex items-center justify-center">
+    <button
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      className={"flex flex-col items-center gap-2 " + (disabled ? "opacity-40 cursor-not-allowed" : "")}
+      title={disabled ? (disabledLabel || "Fitur belum aktif") : undefined}
+    >
+      <div className="w-[62px] h-[62px] bg-[#FFF5F5] rounded-[18px] flex items-center justify-center relative">
         {icon}
+        {disabled && (
+          <span className="absolute -bottom-1 -right-1 bg-gray-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">
+            Segera
+          </span>
+        )}
       </div>
       <span className="text-[12px] font-semibold text-[#1A0000]">{label}</span>
     </button>

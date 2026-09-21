@@ -22,11 +22,9 @@ const PALETTE = [
   "#6366F1", "#8B5CF6", "#EC4899", "#14B8A6", "#84CC16",
 ];
 
+// Tampil angka full sesuai data (bukan compact K/M/B). Contoh: Rp 5.950.500
 function fmtRupiah(v) {
   const n = Number(v) || 0;
-  if (n >= 1_000_000_000) return `Rp ${(n / 1_000_000_000).toFixed(1)}B`;
-  if (n >= 1_000_000)     return `Rp ${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000)         return `Rp ${(n / 1_000).toFixed(1)}K`;
   return `Rp ${Math.round(n).toLocaleString("id-ID")}`;
 }
 
