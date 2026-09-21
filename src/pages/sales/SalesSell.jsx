@@ -302,6 +302,20 @@ export default function SalesSell() {
     setCart((prev) => prev.map((x) => (x.qr === qr ? { ...x, unitPrice: num } : x)));
   }, []);
 
+  // Bulk edit harga per productId — kasus promo 300 SN sama product perlu
+  // harga baru, tidak perlu edit 1-per-1.
+  function bulkUpdatePriceByProduct(productId, productName, count) {
+    const inputEl = document.getElementById(`bulk-price-${productId}`);
+    const val = Number(inputEl?.value || 0);
+    if (!val || val <= 0) {
+      setStatusKind("err"); setStatusMsg("Harga harus > 0"); beep(false); return;
+    }
+    if (!window.confirm(`Ubah harga ${count} SN "${productName}" jadi ${rupiah(val)}?`)) return;
+    setCart((prev) => prev.map((x) => (x.productId === productId ? { ...x, unitPrice: val } : x)));
+    if (inputEl) inputEl.value = "";
+    setStatusKind("ok"); setStatusMsg(`✓ ${count} SN diubah ke ${rupiah(val)}`); beep(true);
+  }
+
   // Normalize input SN — strip URL wrapper + potong 15-digit fisik ke 12-digit
   // internal SN. Kalau tidak match pattern URL/15-digit → passthrough (SN dgn
   // prefix huruf mis. V001, atau 12-digit pure numeric tetap valid).
@@ -800,18 +814,63 @@ export default function SalesSell() {
                 Belum ada item. Scan QR / tap dari Stock Saya di atas.
               </div>
             ) : (
-              <ul className="divide-y divide-gray-100">
-                {cart.map((it) => (
-                  <CartRow
-                    key={it.qr}
-                    qr={it.qr}
-                    productName={it.productName}
-                    unitPrice={it.unitPrice}
-                    onRemove={removeItem}
-                    onPriceChange={updatePrice}
-                  />
-                ))}
-              </ul>
+              <>
+                {/* Bulk edit harga per product — cepat kalau promo N SN sama product */}
+                {(() => {
+                  const groups = new Map();
+                  cart.forEach((it) => {
+                    if (!groups.has(it.productId))
+                      groups.set(it.productId, { productId: it.productId, productName: it.productName, count: 0, sample: it.unitPrice });
+                    groups.get(it.productId).count += 1;
+                  });
+                  const arr = Array.from(groups.values());
+                  if (arr.length === 0) return null;
+                  return (
+                    <div className="mb-3 p-2.5 bg-[#FFF8F0] rounded-lg border border-[#FFE7CE]">
+                      <div className="text-[11px] font-semibold text-[#B20605] mb-1.5">Ubah Harga per Product</div>
+                      <div className="space-y-1.5">
+                        {arr.map((g) => (
+                          <div key={g.productId} className="flex items-center gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[12px] font-semibold truncate">{g.productName}</div>
+                              <div className="text-[10px] text-gray-500">{g.count} SN · sekarang ~{rupiah(g.sample)}</div>
+                            </div>
+                            <input
+                              type="number"
+                              defaultValue=""
+                              placeholder="harga baru"
+                              min="1"
+                              step="1"
+                              id={`bulk-price-${g.productId}`}
+                              className="w-24 border border-gray-200 rounded px-2 py-1 text-[12px] text-right"
+                            />
+                            <button
+                              type="button"
+                              className="bg-[#B20605] text-white text-[11px] font-semibold px-2.5 py-1 rounded"
+                              onClick={() => bulkUpdatePriceByProduct(g.productId, g.productName, g.count)}
+                            >
+                              Terapkan
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <ul className="divide-y divide-gray-100">
+                  {cart.map((it) => (
+                    <CartRow
+                      key={it.qr}
+                      qr={it.qr}
+                      productName={it.productName}
+                      unitPrice={it.unitPrice}
+                      onRemove={removeItem}
+                      onPriceChange={updatePrice}
+                    />
+                  ))}
+                </ul>
+              </>
             )}
             <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
               <span className="text-[13px] text-gray-500">Total</span>
