@@ -10,9 +10,9 @@ const resolveBaseUrl = () => {
   if (
     import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   if (typeof window !== "undefined" && window.location ?.hostname) {
-    return "https://api-golden.modoto.net/api";
+    return "https://dev-api-golden.modoto.net/api";
   }
-  return "https://api-golden.modoto.net/api";
+  return "https://dev-api-golden.modoto.net/api";
 };
 
 const baseURL = resolveBaseUrl();

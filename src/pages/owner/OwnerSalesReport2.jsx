@@ -54,8 +54,11 @@ export default function OwnerSalesReport2() {
   }, [tab, month, navigate]);
 
   const items = data?.items || [];
-  const totalRevenue = items.reduce((s, x) => s + Number(x.revenue || 0), 0);
-  const totalOrders  = items.reduce((s, x) => s + Number(x.orders  || 0), 0);
+  // Prefer grand total dari API — reflect keseluruhan bulan, bukan sum-of-top-N.
+  // Fallback: sum items (backward compat kalau backend belum return grandRevenue).
+  const totalRevenue = Number(data?.grandRevenue ?? items.reduce((s, x) => s + Number(x.revenue || 0), 0));
+  const totalOrders  = Number(data?.grandOrders  ?? items.reduce((s, x) => s + Number(x.orders  || 0), 0));
+  const totalGroups  = Number(data?.totalGroups  ?? items.length);
   const maxVal       = Math.max(1, ...items.map((x) => Number(x.revenue || 0)));
 
   // Bar chart data (top 5 for visual clarity)
@@ -121,7 +124,10 @@ export default function OwnerSalesReport2() {
         <div>
           <p className="text-[11px] text-gray-400">Total Revenue ({data.dimensionLabel || "—"})</p>
           <p className="text-[20px] font-bold text-[#B20605]">{fmtRupiah(totalRevenue)}</p>
-          <p className="text-[11px] text-gray-500 mt-0.5">{totalOrders} orders · {items.length} baris</p>
+          <p className="text-[11px] text-gray-500 mt-0.5">
+            {totalOrders} orders · {totalGroups} {TABS.find((t) => t.key === tab)?.label?.split(" ").pop() || "grup"}
+            {items.length < totalGroups ? ` (top ${items.length} tampil)` : ""}
+          </p>
         </div>
         <MonthPicker value={month} onChange={setMonth} />
       </div>

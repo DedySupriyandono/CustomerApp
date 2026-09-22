@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Bell, ShoppingCart, Search,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
-  Calendar, Receipt, Package,
+  Calendar, Receipt, Package, Printer, User, Phone,
 } from "lucide-react";
 import salesApi from "../../api/salesApi";
 import SalesBottomNav from "../../components/SalesBottomNav";
@@ -247,6 +247,24 @@ export default function SalesSalesHistory() {
                       </div>
                     </div>
 
+                    {/* Buyer info — kalau kosong, section hidden */}
+                    {(s.buyerName || s.buyerPhone) && (
+                      <div className="mb-3 pb-3 border-b border-gray-100 border-dashed text-[12px]">
+                        {s.buyerName && (
+                          <div className="flex items-center gap-1.5 text-[#1A0000]">
+                            <User className="w-3.5 h-3.5 text-gray-400" />
+                            <span className="font-semibold truncate">{s.buyerName}</span>
+                          </div>
+                        )}
+                        {s.buyerPhone && (
+                          <div className="flex items-center gap-1.5 text-gray-500 mt-0.5">
+                            <Phone className="w-3.5 h-3.5 text-gray-400" />
+                            <span>{s.buyerPhone}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div className="space-y-2 text-[13px]">
                       <Row label="Total Item" value={`${s.itemCount} pcs`} />
                       <div className="flex justify-between items-center pt-1">
@@ -286,6 +304,14 @@ export default function SalesSalesHistory() {
                               </span>
                             </div>
                           ))}
+                          {/* Print Nota button */}
+                          <button
+                            type="button"
+                            onClick={() => printNota(s, detail)}
+                            className="w-full mt-3 bg-[#1A0000] hover:bg-[#2A0000] text-white font-semibold text-[12px] py-2.5 rounded-xl flex items-center justify-center gap-2"
+                          >
+                            <Printer className="w-4 h-4" /> Print Nota Penjualan
+                          </button>
                         </div>
                       )}
                     </div>
@@ -345,6 +371,71 @@ function Row({ label, value }) {
       <span className="text-[#1A0000] font-semibold">{value}</span>
     </div>
   );
+}
+
+// Simple HTML nota print — open new tab, load window.print() otomatis.
+// Format thermal-friendly (58mm width). Data digabung dari list card + detail.
+function printNota(head, detail) {
+  const money = (n) => "Rp " + Math.round(Number(n) || 0).toLocaleString("id-ID");
+  const esc = (s) => String(s || "").replace(/[<>&]/g, (c) => ({"<":"&lt;",">":"&gt;","&":"&amp;"}[c]));
+  const soldAt = detail?.soldAt || head.soldAt;
+  const dateStr = soldAt ? new Date(soldAt).toLocaleString("id-ID") : "-";
+  const sfLine = [detail?.salesForceCode, detail?.salesForceName].filter(Boolean).join(" - ") || "-";
+  const rows = (detail?.items || []).map((it, i) => `
+    <tr>
+      <td style="padding:2px 4px;vertical-align:top;">${i + 1}</td>
+      <td style="padding:2px 4px;vertical-align:top;">
+        <div>${esc(it.productName || it.productNumber || "-")}</div>
+        <div style="font-family:monospace;font-size:10px;color:#666;">${esc(it.sn || "")}</div>
+      </td>
+      <td style="padding:2px 4px;text-align:right;vertical-align:top;">${money(it.unitPrice)}</td>
+    </tr>
+  `).join("");
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Nota ${esc(head.saleNumber)}</title>
+<style>
+  @page { margin: 8mm; }
+  body { font-family: 'Courier New', monospace; font-size: 12px; color: #000; max-width: 380px; margin: 0 auto; padding: 8px; }
+  h1 { text-align: center; font-size: 14px; margin: 0 0 6px; }
+  .sub { text-align: center; font-size: 11px; color: #333; margin-bottom: 10px; }
+  .row { display: flex; justify-content: space-between; margin: 2px 0; font-size: 11px; }
+  .row .label { color: #444; }
+  hr { border: none; border-top: 1px dashed #999; margin: 8px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th { text-align: left; padding: 4px; border-bottom: 1px solid #000; font-size: 11px; }
+  .total { font-size: 13px; font-weight: bold; }
+  .footer { text-align: center; margin-top: 12px; font-size: 10px; color: #666; }
+  @media print { body { max-width: none; } .noprint { display: none; } }
+</style></head><body>
+  <h1>NOTA PENJUALAN</h1>
+  <div class="sub">${esc(sfLine)}</div>
+  <hr>
+  <div class="row"><span class="label">No</span><span>${esc(head.saleNumber)}</span></div>
+  <div class="row"><span class="label">Tanggal</span><span>${esc(dateStr)}</span></div>
+  ${detail?.paymentMethod ? `<div class="row"><span class="label">Metode</span><span>${esc(detail.paymentMethod)}</span></div>` : ""}
+  <hr>
+  <div class="row"><span class="label">Pembeli</span><span>${esc(detail?.buyerName || head.buyerName || "-")}</span></div>
+  <div class="row"><span class="label">HP</span><span>${esc(detail?.buyerPhone || head.buyerPhone || "-")}</span></div>
+  <hr>
+  <table>
+    <thead><tr><th style="width:20px;">#</th><th>Item</th><th style="text-align:right;">Harga</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <hr>
+  <div class="row"><span>Total Item</span><span>${detail?.itemCount || head.itemCount} pcs</span></div>
+  <div class="row total"><span>TOTAL</span><span>${money(detail?.total || head.total)}</span></div>
+  ${detail?.notes ? `<hr><div style="font-size:11px;">Catatan: ${esc(detail.notes)}</div>` : ""}
+  <div class="footer">Terima kasih atas pembelian Anda.</div>
+  <div class="noprint" style="text-align:center;margin-top:16px;">
+    <button onclick="window.print()" style="padding:8px 16px;background:#B20605;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;">Print</button>
+    <button onclick="window.close()" style="padding:8px 16px;background:#666;color:#fff;border:none;border-radius:6px;margin-left:8px;cursor:pointer;">Tutup</button>
+  </div>
+  <script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 200); });<\/script>
+</body></html>`;
+
+  const w = window.open("", "_blank", "width=420,height=680");
+  if (!w) { alert("Popup blocked — izinkan popup untuk print nota."); return; }
+  w.document.open(); w.document.write(html); w.document.close();
 }
 
 function buildPageNumbers(current, total) {

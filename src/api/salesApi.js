@@ -3,8 +3,8 @@ import axios from "axios";
 const baseURL =
   import.meta.env.VITE_API_URL ||
   (typeof window !== "undefined" ?
-    "https://api-golden.modoto.net/api" :
-    "https://api-golden.modoto.net/api");
+    "https://dev-api-golden.modoto.net/api" :
+    "https://dev-api-golden.modoto.net/api");
 
 const salesApi = axios.create({ baseURL });
 

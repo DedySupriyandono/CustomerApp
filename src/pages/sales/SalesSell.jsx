@@ -65,6 +65,10 @@ export default function SalesSell() {
   const [buyerName, setBuyerName] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Customer list dari outlet SF login — dipakai untuk datalist suggestion di
+  // Nama Pembeli. Kalau user pilih dari list, HP auto-fill. Kalau ketik custom,
+  // tetap bisa submit — freetext + hint pattern (HTML5 datalist).
+  const [customers, setCustomers] = useState([]);
 
   const [stock, setStock] = useState({ totalQty: 0, groups: [] });
   const [stockLoading, setStockLoading] = useState(true);
@@ -139,6 +143,13 @@ export default function SalesSell() {
     return () => {
       try { if (scannerRef.current) scannerRef.current.stop().catch(() => {}); } catch (e) {}
     };
+  }, []);
+
+  // Load customer list (outlet SF) — dipakai autocomplete Nama Pembeli.
+  useEffect(() => {
+    salesApi.get("/sales/customers")
+      .then((r) => setCustomers(Array.isArray(r.data) ? r.data : []))
+      .catch(() => { /* silent — user tetap bisa input manual */ });
   }, []);
 
   // Cleanup claims saat tab ditutup / component unmount — supaya SN tidak
@@ -880,15 +891,36 @@ export default function SalesSell() {
 
           {/* Buyer */}
           <div className="bg-white rounded-2xl p-4 border border-[#F6F3F3] shadow-[0_2px_15px_rgba(0,0,0,0.03)] mb-3">
-            <div className="font-bold text-[#1A0000] text-[14px] mb-3">Pembeli</div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-bold text-[#1A0000] text-[14px]">Pembeli</div>
+              <div className="text-[10px] text-gray-400">{customers.length} outlet</div>
+            </div>
             <div className="space-y-2">
               <input
                 type="text"
+                list="buyer-customer-list"
                 value={buyerName}
-                onChange={(e) => setBuyerName(e.target.value)}
-                placeholder="Nama pembeli"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setBuyerName(val);
+                  // Kalau nama match customer di outlet (case-insensitive),
+                  // auto-fill HP. Kalau custom (tidak match), biarkan HP as-is.
+                  const match = customers.find(
+                    (c) => (c.customerName || "").toLowerCase() === val.toLowerCase()
+                  );
+                  if (match && match.phone) setBuyerPhone(match.phone);
+                }}
+                placeholder="Nama pembeli (ketik / pilih outlet)"
+                autoComplete="off"
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px]"
               />
+              <datalist id="buyer-customer-list">
+                {customers.map((c) => (
+                  <option key={c.id} value={c.customerName || ""}>
+                    {c.phone || ""}{c.customerCode ? ` · ${c.customerCode}` : ""}
+                  </option>
+                ))}
+              </datalist>
               <input
                 type="tel"
                 value={buyerPhone}
