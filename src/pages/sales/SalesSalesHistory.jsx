@@ -526,42 +526,63 @@ function printViaRawBT(head, detail) {
   const totalItem = arr.reduce((s, g) => s + g.qty, 0);
   const totalAmt  = arr.reduce((s, g) => s + g.subtotal, 0);
 
+  // Plain text — RawBT versi tertentu tidak parse tag [B]/[C]. Center manual
+  // pakai padding spaces (function `center()`), bold di-skip (thermal biasanya
+  // pakai default weight tebal juga).
   const lines = [];
-  lines.push("[C][B]" + COMPANY_NAME + "[/B][/C]");
-  COMPANY_ADDR.forEach((l) => lines.push("[C]" + l + "[/C]"));
+  lines.push(center(COMPANY_NAME));
+  COMPANY_ADDR.forEach((l) => lines.push(center(l)));
   lines.push(hr);
   lines.push(lr(dateStr, "#" + head.saleNumber.slice(-4)));
   lines.push(sfLine);
   lines.push(hr);
   arr.forEach((g) => {
     const avg = g.qty > 0 ? g.subtotal / g.qty : 0;
-    lines.push("[B]" + g.name + "[/B]");
+    lines.push(g.name);
     lines.push(lr("  " + g.qty + "x " + money(avg), money(g.subtotal)));
   });
   lines.push(hr);
   lines.push("Item: " + totalItem);
   lines.push(hr);
-  lines.push("[B]" + lr("Total", "Rp" + money(totalAmt)) + "[/B]");
+  lines.push(lr("Total", "Rp" + money(totalAmt)));
   lines.push(lr(detail?.paymentMethod || "Tunai", "Rp" + money(totalAmt)));
   if (buyer || phone) {
     lines.push(hr);
     if (buyer) lines.push("Pembeli: " + buyer);
     if (phone) lines.push("HP: " + phone);
   }
-  lines.push("[C]Terima kasih[/C]");
+  lines.push("");
+  lines.push(center("Terima kasih"));
   lines.push(""); lines.push(""); lines.push(""); // feed paper before tear
 
   const text = lines.join("\n");
   const url  = "rawbt:" + encodeURIComponent(text);
 
-  // Trigger intent — mobile browser akan launch RawBT kalau installed.
-  // Fallback: alert kalau tidak install (browser stay on page).
-  const a = document.createElement("a");
-  a.href = url;
-  a.style.display = "none";
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => { try { document.body.removeChild(a); } catch {} }, 500);
+  // Chrome Android intercept custom scheme kalau launched dari user gesture
+  // direct. Programmatic <a>.click() sering di-block. Pakai window.location.href
+  // yang langsung dipicu di dalam onClick handler = user gesture yg valid.
+  // Fallback: kalau setelah 1.5 detik masih di page yang sama, kemungkinan
+  // RawBT belum install → kasih tau user.
+  try {
+    // Timestamp before navigation attempt
+    const before = Date.now();
+    window.location.href = url;
+    // Fallback check: kalau tetap di page setelah 1.5s, RawBT tidak handle
+    setTimeout(() => {
+      if (Date.now() - before < 3000 && document.hasFocus()) {
+        alert(
+          "RawBT tidak merespon.\n\n" +
+          "Cek:\n" +
+          "1. RawBT sudah di-install dari Play Store?\n" +
+          "2. Buka RawBT sekali, pair printer thermal via Bluetooth\n" +
+          "3. Kembali ke sini, coba lagi\n\n" +
+          "Alternatif: pakai tombol 'Print (Browser)' → pilih RawBT dari list printer di dialog Android."
+        );
+      }
+    }, 1500);
+  } catch (e) {
+    alert("Gagal buka RawBT: " + (e?.message || e));
+  }
 }
 
 function buildPageNumbers(current, total) {
