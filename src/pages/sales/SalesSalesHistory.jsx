@@ -373,68 +373,103 @@ function Row({ label, value }) {
   );
 }
 
-// Simple HTML nota print — open new tab, load window.print() otomatis.
-// Format thermal-friendly (58mm width). Data digabung dari list card + detail.
+// Nota thermal 58mm — aggregate per produk (bukan per SN). Auto-trigger print
+// dialog; di HP Android user pilih printer Bluetooth thermal via helper app
+// (RawBT / Bluetooth Print) atau print service bawaan.
+//
+// Company info: edit constant COMPANY_* di bawah, atau ganti jadi dinamis
+// dari API branch info kalau sudah ada endpoint.
+const COMPANY_NAME    = "PT GOLDEN COMMUNICATION";
+const COMPANY_ADDR    = ["Komp Ruko Nagoya Hill", "Blok R3 no. J36 - J37", "Batam"];
+
 function printNota(head, detail) {
-  const money = (n) => "Rp " + Math.round(Number(n) || 0).toLocaleString("id-ID");
-  const esc = (s) => String(s || "").replace(/[<>&]/g, (c) => ({"<":"&lt;",">":"&gt;","&":"&amp;"}[c]));
+  const money = (n) => Math.round(Number(n) || 0).toLocaleString("id-ID");
+  const esc   = (s) => String(s || "").replace(/[<>&]/g, (c) => ({"<":"&lt;",">":"&gt;","&":"&amp;"}[c]));
   const soldAt = detail?.soldAt || head.soldAt;
-  const dateStr = soldAt ? new Date(soldAt).toLocaleString("id-ID") : "-";
-  const sfLine = [detail?.salesForceCode, detail?.salesForceName].filter(Boolean).join(" - ") || "-";
-  const rows = (detail?.items || []).map((it, i) => `
-    <tr>
-      <td style="padding:2px 4px;vertical-align:top;">${i + 1}</td>
-      <td style="padding:2px 4px;vertical-align:top;">
-        <div>${esc(it.productName || it.productNumber || "-")}</div>
-        <div style="font-family:monospace;font-size:10px;color:#666;">${esc(it.sn || "")}</div>
-      </td>
-      <td style="padding:2px 4px;text-align:right;vertical-align:top;">${money(it.unitPrice)}</td>
-    </tr>
-  `).join("");
+  const dateStr = soldAt
+    ? new Date(soldAt).toLocaleString("id-ID", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" })
+    : "-";
+  const sfLine  = [detail?.salesForceCode, detail?.salesForceName].filter(Boolean).join(" ") || "-";
+  const buyer   = detail?.buyerName  || head.buyerName;
+  const phone   = detail?.buyerPhone || head.buyerPhone;
+
+  // Aggregate items by productId — 1 baris per produk (Nx price = subtotal).
+  const groups = new Map();
+  (detail?.items || []).forEach((it) => {
+    const key = it.productId || it.productNumber || it.productName;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        name: it.productName || it.productNumber || "-",
+        qty: 0, subtotal: 0, unitPrice: Number(it.unitPrice) || 0,
+      });
+    }
+    const g = groups.get(key);
+    g.qty += 1;
+    g.subtotal += Number(it.unitPrice) || 0;
+  });
+  const arr = Array.from(groups.values());
+  const totalItem = arr.reduce((s, g) => s + g.qty, 0);
+  const totalAmt  = arr.reduce((s, g) => s + g.subtotal, 0);
+
+  const itemLines = arr.map((g) => {
+    const avgPrice = g.qty > 0 ? g.subtotal / g.qty : g.unitPrice;
+    return `
+      <div class="prod">${esc(g.name)}</div>
+      <div class="qty-row">
+        <span>${g.qty}x ${money(avgPrice)}</span>
+        <span>${money(g.subtotal)}</span>
+      </div>`;
+  }).join("");
+
+  const addrHtml = COMPANY_ADDR.map((l) => `<div>${esc(l)}</div>`).join("");
+  const paymentLabel = detail?.paymentMethod || "Tunai";
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Nota ${esc(head.saleNumber)}</title>
 <style>
-  @page { margin: 8mm; }
-  body { font-family: 'Courier New', monospace; font-size: 12px; color: #000; max-width: 380px; margin: 0 auto; padding: 8px; }
-  h1 { text-align: center; font-size: 14px; margin: 0 0 6px; }
-  .sub { text-align: center; font-size: 11px; color: #333; margin-bottom: 10px; }
-  .row { display: flex; justify-content: space-between; margin: 2px 0; font-size: 11px; }
-  .row .label { color: #444; }
-  hr { border: none; border-top: 1px dashed #999; margin: 8px 0; }
-  table { width: 100%; border-collapse: collapse; font-size: 11px; }
-  th { text-align: left; padding: 4px; border-bottom: 1px solid #000; font-size: 11px; }
-  .total { font-size: 13px; font-weight: bold; }
-  .footer { text-align: center; margin-top: 12px; font-size: 10px; color: #666; }
-  @media print { body { max-width: none; } .noprint { display: none; } }
+  @page { size: 58mm auto; margin: 2mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'Courier New', 'Consolas', monospace; font-size: 11px; color: #000; width: 54mm; margin: 0 auto; padding: 2mm; line-height: 1.35; }
+  .center { text-align: center; }
+  .company { font-weight: bold; font-size: 12px; }
+  .addr { font-size: 10px; }
+  hr { border: none; border-top: 1px dashed #000; margin: 4px 0; }
+  .row { display: flex; justify-content: space-between; }
+  .prod { font-weight: bold; margin-top: 3px; font-size: 11px; word-break: break-word; }
+  .qty-row { display: flex; justify-content: space-between; padding-left: 6px; }
+  .total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; margin-top: 2px; }
+  .footer { text-align: center; margin-top: 8px; font-size: 10px; }
+  @media print { .noprint { display: none !important; } body { width: auto; } }
+  .noprint { position: fixed; bottom: 0; left: 0; right: 0; padding: 8px; background: #fff; border-top: 1px solid #ddd; display: flex; gap: 8px; justify-content: center; }
+  .noprint button { padding: 8px 16px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
 </style></head><body>
-  <h1>NOTA PENJUALAN</h1>
-  <div class="sub">${esc(sfLine)}</div>
+  <div class="center company">${esc(COMPANY_NAME)}</div>
+  <div class="center addr">${addrHtml}</div>
   <hr>
-  <div class="row"><span class="label">No</span><span>${esc(head.saleNumber)}</span></div>
-  <div class="row"><span class="label">Tanggal</span><span>${esc(dateStr)}</span></div>
-  ${detail?.paymentMethod ? `<div class="row"><span class="label">Metode</span><span>${esc(detail.paymentMethod)}</span></div>` : ""}
+  <div class="row"><span>${esc(dateStr)}</span><span>#${esc(head.saleNumber.slice(-4))}</span></div>
+  <div>${esc(sfLine)}</div>
   <hr>
-  <div class="row"><span class="label">Pembeli</span><span>${esc(detail?.buyerName || head.buyerName || "-")}</span></div>
-  <div class="row"><span class="label">HP</span><span>${esc(detail?.buyerPhone || head.buyerPhone || "-")}</span></div>
+  ${itemLines}
   <hr>
-  <table>
-    <thead><tr><th style="width:20px;">#</th><th>Item</th><th style="text-align:right;">Harga</th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table>
+  <div>Item: ${totalItem}</div>
   <hr>
-  <div class="row"><span>Total Item</span><span>${detail?.itemCount || head.itemCount} pcs</span></div>
-  <div class="row total"><span>TOTAL</span><span>${money(detail?.total || head.total)}</span></div>
-  ${detail?.notes ? `<hr><div style="font-size:11px;">Catatan: ${esc(detail.notes)}</div>` : ""}
-  <div class="footer">Terima kasih atas pembelian Anda.</div>
-  <div class="noprint" style="text-align:center;margin-top:16px;">
-    <button onclick="window.print()" style="padding:8px 16px;background:#B20605;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;">Print</button>
-    <button onclick="window.close()" style="padding:8px 16px;background:#666;color:#fff;border:none;border-radius:6px;margin-left:8px;cursor:pointer;">Tutup</button>
+  <div class="total-row"><span>Total</span><span>Rp${money(totalAmt)}</span></div>
+  <div class="row"><span>${esc(paymentLabel)}</span><span>Rp${money(totalAmt)}</span></div>
+  ${buyer || phone ? `<hr><div style="font-size:10px;">
+    ${buyer ? `<div>Pembeli: ${esc(buyer)}</div>` : ""}
+    ${phone ? `<div>HP: ${esc(phone)}</div>` : ""}
+  </div>` : ""}
+  <div class="footer">Terima kasih</div>
+
+  <div class="noprint">
+    <button onclick="window.print()" style="background:#B20605;color:#fff;">Print</button>
+    <button onclick="window.close()" style="background:#666;color:#fff;">Tutup</button>
   </div>
-  <script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 200); });<\/script>
+  <script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 250); });<\/script>
 </body></html>`;
 
-  const w = window.open("", "_blank", "width=420,height=680");
-  if (!w) { alert("Popup blocked — izinkan popup untuk print nota."); return; }
+  const w = window.open("", "_blank");
+  if (!w) { alert("Popup diblokir — izinkan popup untuk print nota."); return; }
   w.document.open(); w.document.write(html); w.document.close();
 }
 
