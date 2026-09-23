@@ -304,14 +304,24 @@ export default function SalesSalesHistory() {
                               </span>
                             </div>
                           ))}
-                          {/* Print Nota button */}
-                          <button
-                            type="button"
-                            onClick={() => printNota(s, detail)}
-                            className="w-full mt-3 bg-[#1A0000] hover:bg-[#2A0000] text-white font-semibold text-[12px] py-2.5 rounded-xl flex items-center justify-center gap-2"
-                          >
-                            <Printer className="w-4 h-4" /> Print Nota Penjualan
-                          </button>
+                          {/* Print buttons — 2 opsi */}
+                          <div className="grid grid-cols-2 gap-2 mt-3">
+                            <button
+                              type="button"
+                              onClick={() => printNota(s, detail)}
+                              className="bg-[#1A0000] hover:bg-[#2A0000] text-white font-semibold text-[11px] py-2.5 rounded-xl flex items-center justify-center gap-1.5"
+                            >
+                              <Printer className="w-3.5 h-3.5" /> Print (Browser)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => printViaRawBT(s, detail)}
+                              className="bg-[#B20605] hover:bg-[#8B0504] text-white font-semibold text-[11px] py-2.5 rounded-xl flex items-center justify-center gap-1.5"
+                              title="Bluetooth thermal via RawBT (Android)"
+                            >
+                              <Printer className="w-3.5 h-3.5" /> Print RawBT
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -471,6 +481,87 @@ function printNota(head, detail) {
   const w = window.open("", "_blank");
   if (!w) { alert("Popup diblokir — izinkan popup untuk print nota."); return; }
   w.document.open(); w.document.write(html); w.document.close();
+}
+
+// Print langsung ke printer thermal Bluetooth via RawBT (Android).
+// URL scheme: rawbt:<urlencoded_text>. RawBT support tag [C][B][/B][/C] untuk
+// center + bold. Wajib install RawBT + pair printer di HP sekali.
+function printViaRawBT(head, detail) {
+  const money = (n) => Math.round(Number(n) || 0).toLocaleString("id-ID");
+  const W = 32; // 58mm thermal ~32 karakter monospace per baris
+  const center = (s) => {
+    const t = String(s).slice(0, W);
+    const pad = Math.max(0, Math.floor((W - t.length) / 2));
+    return " ".repeat(pad) + t;
+  };
+  const lr = (l, r) => {
+    const ll = String(l), rr = String(r);
+    const gap = Math.max(1, W - ll.length - rr.length);
+    return ll + " ".repeat(gap) + rr;
+  };
+  const hr = "-".repeat(W);
+  const soldAt = detail?.soldAt || head.soldAt;
+  const dateStr = soldAt
+    ? new Date(soldAt).toLocaleString("id-ID", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" })
+    : "-";
+  const sfLine = [detail?.salesForceCode, detail?.salesForceName].filter(Boolean).join(" ") || "-";
+  const buyer = detail?.buyerName || head.buyerName;
+  const phone = detail?.buyerPhone || head.buyerPhone;
+
+  // Aggregate by productId
+  const groups = new Map();
+  (detail?.items || []).forEach((it) => {
+    const key = it.productId || it.productNumber || it.productName;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        name: it.productName || it.productNumber || "-",
+        qty: 0, subtotal: 0,
+      });
+    }
+    const g = groups.get(key);
+    g.qty += 1;
+    g.subtotal += Number(it.unitPrice) || 0;
+  });
+  const arr = Array.from(groups.values());
+  const totalItem = arr.reduce((s, g) => s + g.qty, 0);
+  const totalAmt  = arr.reduce((s, g) => s + g.subtotal, 0);
+
+  const lines = [];
+  lines.push("[C][B]" + COMPANY_NAME + "[/B][/C]");
+  COMPANY_ADDR.forEach((l) => lines.push("[C]" + l + "[/C]"));
+  lines.push(hr);
+  lines.push(lr(dateStr, "#" + head.saleNumber.slice(-4)));
+  lines.push(sfLine);
+  lines.push(hr);
+  arr.forEach((g) => {
+    const avg = g.qty > 0 ? g.subtotal / g.qty : 0;
+    lines.push("[B]" + g.name + "[/B]");
+    lines.push(lr("  " + g.qty + "x " + money(avg), money(g.subtotal)));
+  });
+  lines.push(hr);
+  lines.push("Item: " + totalItem);
+  lines.push(hr);
+  lines.push("[B]" + lr("Total", "Rp" + money(totalAmt)) + "[/B]");
+  lines.push(lr(detail?.paymentMethod || "Tunai", "Rp" + money(totalAmt)));
+  if (buyer || phone) {
+    lines.push(hr);
+    if (buyer) lines.push("Pembeli: " + buyer);
+    if (phone) lines.push("HP: " + phone);
+  }
+  lines.push("[C]Terima kasih[/C]");
+  lines.push(""); lines.push(""); lines.push(""); // feed paper before tear
+
+  const text = lines.join("\n");
+  const url  = "rawbt:" + encodeURIComponent(text);
+
+  // Trigger intent — mobile browser akan launch RawBT kalau installed.
+  // Fallback: alert kalau tidak install (browser stay on page).
+  const a = document.createElement("a");
+  a.href = url;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { try { document.body.removeChild(a); } catch {} }, 500);
 }
 
 function buildPageNumbers(current, total) {
