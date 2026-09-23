@@ -65,10 +65,12 @@ export default function SalesSell() {
   const [buyerName, setBuyerName] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  // Customer list dari outlet SF login — dipakai untuk datalist suggestion di
+  // Customer list dari outlet SF login — dipakai untuk combobox suggestion di
   // Nama Pembeli. Kalau user pilih dari list, HP auto-fill. Kalau ketik custom,
-  // tetap bisa submit — freetext + hint pattern (HTML5 datalist).
+  // tetap bisa submit — combobox pattern (visible dropdown + freetext).
   const [customers, setCustomers] = useState([]);
+  const [showBuyerDropdown, setShowBuyerDropdown] = useState(false);
+  const buyerDropdownRef = useRef(null);
 
   const [stock, setStock] = useState({ totalQty: 0, groups: [] });
   const [stockLoading, setStockLoading] = useState(true);
@@ -151,6 +153,35 @@ export default function SalesSell() {
       .then((r) => setCustomers(Array.isArray(r.data) ? r.data : []))
       .catch(() => { /* silent — user tetap bisa input manual */ });
   }, []);
+
+  // Close buyer dropdown on click outside.
+  useEffect(() => {
+    if (!showBuyerDropdown) return;
+    const onDocClick = (e) => {
+      if (buyerDropdownRef.current && !buyerDropdownRef.current.contains(e.target)) {
+        setShowBuyerDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("touchstart", onDocClick);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("touchstart", onDocClick);
+    };
+  }, [showBuyerDropdown]);
+
+  // Filter customer options berdasarkan input buyerName (case-insensitive).
+  const filteredCustomers = useMemo(() => {
+    const q = (buyerName || "").trim().toLowerCase();
+    if (!q) return customers.slice(0, 50); // list awal max 50 supaya tidak overload
+    return customers
+      .filter((c) =>
+        (c.customerName || "").toLowerCase().includes(q)
+        || (c.phone || "").includes(q)
+        || (c.customerCode || "").toLowerCase().includes(q)
+      )
+      .slice(0, 50);
+  }, [customers, buyerName]);
 
   // Cleanup claims saat tab ditutup / component unmount — supaya SN tidak
   // "nyangkut" di localStorage kalau tab crash / user tutup tanpa jual.
@@ -896,31 +927,70 @@ export default function SalesSell() {
               <div className="text-[10px] text-gray-400">{customers.length} outlet</div>
             </div>
             <div className="space-y-2">
-              <input
-                type="text"
-                list="buyer-customer-list"
-                value={buyerName}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setBuyerName(val);
-                  // Kalau nama match customer di outlet (case-insensitive),
-                  // auto-fill HP. Kalau custom (tidak match), biarkan HP as-is.
-                  const match = customers.find(
-                    (c) => (c.customerName || "").toLowerCase() === val.toLowerCase()
-                  );
-                  if (match && match.phone) setBuyerPhone(match.phone);
-                }}
-                placeholder="Nama pembeli (ketik / pilih outlet)"
-                autoComplete="off"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px]"
-              />
-              <datalist id="buyer-customer-list">
-                {customers.map((c) => (
-                  <option key={c.id} value={c.customerName || ""}>
-                    {c.phone || ""}{c.customerCode ? ` · ${c.customerCode}` : ""}
-                  </option>
-                ))}
-              </datalist>
+              {/* Combobox: input + tombol chevron kanan → open dropdown list */}
+              <div ref={buyerDropdownRef} className="relative">
+                <input
+                  type="text"
+                  value={buyerName}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setBuyerName(val);
+                    setShowBuyerDropdown(true);
+                    // Auto-fill HP kalau nama exact match customer di outlet.
+                    const match = customers.find(
+                      (c) => (c.customerName || "").toLowerCase() === val.toLowerCase()
+                    );
+                    if (match && match.phone) setBuyerPhone(match.phone);
+                  }}
+                  onFocus={() => setShowBuyerDropdown(true)}
+                  placeholder="Nama pembeli (ketik / pilih outlet)"
+                  autoComplete="off"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 pr-9 text-[13px]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowBuyerDropdown((v) => !v)}
+                  aria-label="Toggle daftar outlet"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-[#B20605]"
+                >
+                  {showBuyerDropdown ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+
+                {showBuyerDropdown && (
+                  <div className="absolute z-30 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                    {filteredCustomers.length === 0 ? (
+                      <div className="px-3 py-3 text-[12px] text-gray-400 text-center">
+                        {buyerName ? "Tidak ada outlet cocok — pakai nama custom" : "Belum ada outlet"}
+                      </div>
+                    ) : (
+                      filteredCustomers.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            setBuyerName(c.customerName || "");
+                            if (c.phone) setBuyerPhone(c.phone);
+                            setShowBuyerDropdown(false);
+                          }}
+                          className="w-full text-left px-3 py-2 text-[12px] hover:bg-[#FFF5F5] border-b border-gray-100 last:border-b-0"
+                        >
+                          <div className="font-semibold text-[#1A0000] truncate">{c.customerName || "-"}</div>
+                          <div className="text-[10px] text-gray-500 flex items-center gap-2">
+                            {c.phone && <span>📞 {c.phone}</span>}
+                            {c.customerCode && <span className="text-gray-400">· {c.customerCode}</span>}
+                          </div>
+                        </button>
+                      ))
+                    )}
+                    {customers.length > filteredCustomers.length && !buyerName && (
+                      <div className="px-3 py-2 text-[10px] text-gray-400 text-center border-t border-gray-100">
+                        Ketik untuk cari... ({customers.length} total)
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <input
                 type="tel"
                 value={buyerPhone}
