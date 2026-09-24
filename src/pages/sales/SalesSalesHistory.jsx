@@ -37,10 +37,14 @@ export default function SalesSalesHistory() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [productId, setProductId] = useState("");
+  const [productList, setProductList] = useState([]);
 
   const [sales, setSales] = useState([]);
   const [totalPages, setTotalPages] = useState(0);
   const [totalRecords, setTotalRecords] = useState(0);
+  const [grandTotal, setGrandTotal] = useState(0);
+  const [grandItemCount, setGrandItemCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -53,22 +57,37 @@ export default function SalesSalesHistory() {
     setError("");
     salesApi
       .get("/sales/sell/history", {
-        params: { from, to, search: search || undefined, page, pageSize: PAGE_SIZE },
+        params: {
+          from, to,
+          search: search || undefined,
+          productId: productId ? Number(productId) : undefined,
+          page, pageSize: PAGE_SIZE,
+        },
       })
       .then((r) => {
         setSales(r.data?.data || []);
         setTotalPages(r.data?.totalPages || 0);
         setTotalRecords(r.data?.totalRecords || 0);
+        setGrandTotal(Number(r.data?.grandTotal || 0));
+        setGrandItemCount(Number(r.data?.grandItemCount || 0));
       })
       .catch((e) => setError(e.response?.data?.message || e.message || "Gagal memuat penjualan"))
       .finally(() => setLoading(false));
-  }, [from, to, search, page]);
+  }, [from, to, search, productId, page]);
+
+  // Load product list untuk dropdown filter — 1x saat mount.
+  useEffect(() => {
+    salesApi.get("/sales/sell/history/products")
+      .then((r) => setProductList(Array.isArray(r.data) ? r.data : []))
+      .catch(() => { /* silent */ });
+  }, []);
 
   const summary = useMemo(() => {
-    const itemCount = sales.reduce((s, x) => s + (x.itemCount || 0), 0);
-    const totalNominal = sales.reduce((s, x) => s + Number(x.total || 0), 0);
+    // Fallback: kalau backend belum return grandTotal (compat), sum items page.
+    const itemCount = grandItemCount || sales.reduce((s, x) => s + (x.itemCount || 0), 0);
+    const totalNominal = grandTotal || sales.reduce((s, x) => s + Number(x.total || 0), 0);
     return { itemCount, totalNominal };
-  }, [sales]);
+  }, [sales, grandTotal, grandItemCount]);
 
   const applySearch = (e) => {
     e?.preventDefault();
@@ -141,16 +160,16 @@ export default function SalesSalesHistory() {
                 <Receipt className="w-3.5 h-3.5 text-[#1F7A4D]" /> Transaksi
               </div>
               <div className="text-[18px] font-bold text-[#1A0000] mt-1">{totalRecords}</div>
-              <div className="text-[11px] text-gray-400 mt-0.5">{summary.itemCount} item (page ini)</div>
+              <div className="text-[11px] text-gray-400 mt-0.5">{summary.itemCount} item</div>
             </div>
             <div className="bg-white rounded-2xl p-3 border border-[#F6F3F3] shadow-[0_2px_15px_rgba(0,0,0,0.03)]">
               <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
-                <Package className="w-3.5 h-3.5 text-[#B20605]" /> Total (page)
+                <Package className="w-3.5 h-3.5 text-[#B20605]" /> Total (rentang)
               </div>
               <div className="text-[18px] font-bold text-[#B20605] mt-1 truncate">
                 {rupiah(summary.totalNominal)}
               </div>
-              <div className="text-[11px] text-gray-400 mt-0.5">Harga saat ini</div>
+              <div className="text-[11px] text-gray-400 mt-0.5">Semua transaksi terfilter</div>
             </div>
           </div>
 
@@ -183,10 +202,32 @@ export default function SalesSalesHistory() {
             </div>
           </div>
 
+          {/* Product filter */}
+          <div className="bg-white rounded-2xl p-3 border border-[#F6F3F3] shadow-[0_2px_15px_rgba(0,0,0,0.03)] mb-3">
+            <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mb-2">
+              <Package className="w-3.5 h-3.5 text-[#B20605]" /> Product
+              {productList.length > 0 && (
+                <span className="ml-auto text-[10px] text-gray-400">{productList.length} product</span>
+              )}
+            </div>
+            <select
+              value={productId}
+              onChange={(e) => { setPage(1); setProductId(e.target.value); }}
+              className="w-full text-[13px] text-[#1A0000] border border-[#F6F3F3] rounded-lg px-2 py-2 focus:outline-none focus:border-[#B20605] bg-white"
+            >
+              <option value="">— Semua product —</option>
+              {productList.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.number ? `${p.number} — ` : ""}{p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Search */}
           <form onSubmit={applySearch} role="search" className="w-full">
             <label className="relative flex w-full h-12 bg-white rounded-[10px] border border-[#F6F3F3]">
-              <span className="sr-only">Cari no. jual</span>
+              <span className="sr-only">Cari</span>
               <div className="absolute top-1/2 -translate-y-1/2 left-1 bg-[#FFF5F5] p-[7px] rounded-lg">
                 <Search className="w-[18px] h-[18px] text-[#B20605]" />
               </div>
@@ -195,7 +236,7 @@ export default function SalesSalesHistory() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onBlur={applySearch}
-                placeholder="Cari no. jual (SELL-...)"
+                placeholder="Cari nama / HP pembeli / SN / no jual"
                 className="absolute inset-0 pl-[52px] pr-3 text-sm text-[#1A0000] placeholder:text-[#606060] focus:outline-none rounded-[10px] bg-transparent"
               />
             </label>
