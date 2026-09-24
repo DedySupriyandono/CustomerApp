@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Bell, ShoppingCart, Search,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
-  Calendar, Receipt, Package, Printer, User, Phone,
+  Calendar, Receipt, Package, Printer, User, Phone, X,
 } from "lucide-react";
 import salesApi from "../../api/salesApi";
 import SalesBottomNav from "../../components/SalesBottomNav";
@@ -39,6 +39,9 @@ export default function SalesSalesHistory() {
   const [search, setSearch] = useState("");
   const [productId, setProductId] = useState("");
   const [productList, setProductList] = useState([]);
+  const [productSearchInput, setProductSearchInput] = useState("");
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const productDropdownRef = useRef(null);
 
   const [sales, setSales] = useState([]);
   const [totalPages, setTotalPages] = useState(0);
@@ -81,6 +84,38 @@ export default function SalesSalesHistory() {
       .then((r) => setProductList(Array.isArray(r.data) ? r.data : []))
       .catch(() => { /* silent */ });
   }, []);
+
+  // Click outside close product dropdown
+  useEffect(() => {
+    if (!showProductDropdown) return;
+    const onDocClick = (e) => {
+      if (productDropdownRef.current && !productDropdownRef.current.contains(e.target)) {
+        setShowProductDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("touchstart", onDocClick);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("touchstart", onDocClick);
+    };
+  }, [showProductDropdown]);
+
+  // Filter product options berdasarkan input search (case-insensitive di name + number)
+  const filteredProducts = useMemo(() => {
+    const q = (productSearchInput || "").trim().toLowerCase();
+    if (!q) return productList;
+    return productList.filter((p) =>
+      (p.name || "").toLowerCase().includes(q)
+      || (p.number || "").toLowerCase().includes(q)
+    );
+  }, [productList, productSearchInput]);
+
+  // Selected product label
+  const selectedProduct = useMemo(
+    () => productList.find((p) => String(p.id) === String(productId)),
+    [productList, productId]
+  );
 
   const summary = useMemo(() => {
     // Fallback: kalau backend belum return grandTotal (compat), sum items page.
@@ -162,11 +197,14 @@ export default function SalesSalesHistory() {
               <div className="text-[18px] font-bold text-[#1A0000] mt-1">{totalRecords}</div>
               <div className="text-[11px] text-gray-400 mt-0.5">{summary.itemCount} item</div>
             </div>
-            <div className="bg-white rounded-2xl p-3 border border-[#F6F3F3] shadow-[0_2px_15px_rgba(0,0,0,0.03)]">
+            <div className="bg-white rounded-2xl p-3 border border-[#F6F3F3] shadow-[0_2px_15px_rgba(0,0,0,0.03)] min-w-0">
               <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
                 <Package className="w-3.5 h-3.5 text-[#B20605]" /> Total (rentang)
               </div>
-              <div className="text-[18px] font-bold text-[#B20605] mt-1 truncate">
+              <div
+                className="font-bold text-[#B20605] mt-1 break-all leading-tight"
+                style={{ fontSize: "clamp(13px, 4.5vw, 18px)" }}
+              >
                 {rupiah(summary.totalNominal)}
               </div>
               <div className="text-[11px] text-gray-400 mt-0.5">Semua transaksi terfilter</div>
@@ -202,7 +240,7 @@ export default function SalesSalesHistory() {
             </div>
           </div>
 
-          {/* Product filter */}
+          {/* Product filter — combobox searchable, tampil nama saja */}
           <div className="bg-white rounded-2xl p-3 border border-[#F6F3F3] shadow-[0_2px_15px_rgba(0,0,0,0.03)] mb-3">
             <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mb-2">
               <Package className="w-3.5 h-3.5 text-[#B20605]" /> Product
@@ -210,18 +248,72 @@ export default function SalesSalesHistory() {
                 <span className="ml-auto text-[10px] text-gray-400">{productList.length} product</span>
               )}
             </div>
-            <select
-              value={productId}
-              onChange={(e) => { setPage(1); setProductId(e.target.value); }}
-              className="w-full text-[13px] text-[#1A0000] border border-[#F6F3F3] rounded-lg px-2 py-2 focus:outline-none focus:border-[#B20605] bg-white"
-            >
-              <option value="">— Semua product —</option>
-              {productList.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.number ? `${p.number} — ` : ""}{p.name}
-                </option>
-              ))}
-            </select>
+            <div ref={productDropdownRef} className="relative">
+              <div
+                onClick={() => setShowProductDropdown((v) => !v)}
+                className="w-full flex items-center justify-between text-[13px] text-[#1A0000] border border-[#F6F3F3] rounded-lg px-3 py-2 bg-white cursor-pointer"
+              >
+                <span className={selectedProduct ? "" : "text-gray-400"}>
+                  {selectedProduct ? selectedProduct.name : "— Semua product —"}
+                </span>
+                <div className="flex items-center gap-1">
+                  {selectedProduct && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setProductId(""); setPage(1); }}
+                      className="p-0.5 text-gray-400 hover:text-[#B20605]"
+                      aria-label="Reset product"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  {showProductDropdown ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                </div>
+              </div>
+
+              {showProductDropdown && (
+                <div className="absolute z-30 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-72 overflow-hidden flex flex-col">
+                  <div className="p-2 border-b border-gray-100 flex-shrink-0">
+                    <input
+                      type="text"
+                      autoFocus
+                      value={productSearchInput}
+                      onChange={(e) => setProductSearchInput(e.target.value)}
+                      placeholder="Ketik nama / kode product..."
+                      className="w-full text-[13px] border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-[#B20605]"
+                    />
+                  </div>
+                  <div className="overflow-y-auto flex-1">
+                    <button
+                      type="button"
+                      onClick={() => { setProductId(""); setPage(1); setShowProductDropdown(false); setProductSearchInput(""); }}
+                      className="w-full text-left px-3 py-2 text-[12px] hover:bg-[#FFF5F5] text-gray-500 border-b border-gray-100"
+                    >
+                      — Semua product —
+                    </button>
+                    {filteredProducts.length === 0 ? (
+                      <div className="px-3 py-3 text-[12px] text-gray-400 text-center">Tidak ada product cocok</div>
+                    ) : (
+                      filteredProducts.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => {
+                            setProductId(String(p.id));
+                            setPage(1);
+                            setShowProductDropdown(false);
+                            setProductSearchInput("");
+                          }}
+                          className="w-full text-left px-3 py-2 text-[13px] hover:bg-[#FFF5F5] border-b border-gray-100 last:border-b-0"
+                        >
+                          {p.name || "-"}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Search */}
