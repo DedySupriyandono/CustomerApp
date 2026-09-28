@@ -381,7 +381,7 @@ export default function SalesSalesHistory() {
                     </div>
 
                     {/* Buyer info — kalau kosong, section hidden */}
-                    {(s.buyerName || s.buyerPhone) && (
+                    {(s.buyerName || s.buyerPhone || s.buyerCode) && (
                       <div className="mb-3 pb-3 border-b border-gray-100 border-dashed text-[12px]">
                         {s.buyerName && (
                           <div className="flex items-center gap-1.5 text-[#1A0000]">
@@ -393,6 +393,12 @@ export default function SalesSalesHistory() {
                           <div className="flex items-center gap-1.5 text-gray-500 mt-0.5">
                             <Phone className="w-3.5 h-3.5 text-gray-400" />
                             <span>{s.buyerPhone}</span>
+                          </div>
+                        )}
+                        {s.buyerCode && (
+                          <div className="flex items-center gap-1.5 text-gray-500 mt-0.5">
+                            <span className="text-gray-400 text-[10px] uppercase tracking-wider">ID Outlet</span>
+                            <span className="font-mono text-[11px]">{s.buyerCode}</span>
                           </div>
                         )}
                       </div>
@@ -535,6 +541,7 @@ function printNota(head, detail) {
   const sfLine  = [detail?.salesForceCode, detail?.salesForceName].filter(Boolean).join(" ") || "-";
   const buyer   = detail?.buyerName  || head.buyerName;
   const phone   = detail?.buyerPhone || head.buyerPhone;
+  const bcode   = detail?.buyerCode  || head.buyerCode;
 
   // Aggregate items by productId — 1 baris per produk (Nx price = subtotal).
   const groups = new Map();
@@ -598,7 +605,8 @@ function printNota(head, detail) {
   <hr>
   <div class="total-row"><span>Total</span><span>Rp${money(totalAmt)}</span></div>
   <div class="row"><span>${esc(paymentLabel)}</span><span>Rp${money(totalAmt)}</span></div>
-  ${buyer || phone ? `<hr><div style="font-size:10px;">
+  ${buyer || phone || bcode ? `<hr><div style="font-size:10px;">
+    ${bcode ? `<div>ID Outlet: ${esc(bcode)}</div>` : ""}
     ${buyer ? `<div>Pembeli: ${esc(buyer)}</div>` : ""}
     ${phone ? `<div>HP: ${esc(phone)}</div>` : ""}
   </div>` : ""}
@@ -640,6 +648,7 @@ function printViaRawBT(head, detail) {
   const sfLine = [detail?.salesForceCode, detail?.salesForceName].filter(Boolean).join(" ") || "-";
   const buyer = detail?.buyerName || head.buyerName;
   const phone = detail?.buyerPhone || head.buyerPhone;
+  const bcode = detail?.buyerCode  || head.buyerCode;
 
   // Aggregate by productId
   const groups = new Map();
@@ -679,8 +688,9 @@ function printViaRawBT(head, detail) {
   lines.push(hr);
   lines.push(lr("Total", "Rp" + money(totalAmt)));
   lines.push(lr(detail?.paymentMethod || "Tunai", "Rp" + money(totalAmt)));
-  if (buyer || phone) {
+  if (buyer || phone || bcode) {
     lines.push(hr);
+    if (bcode) lines.push("ID Outlet: " + bcode);
     if (buyer) lines.push("Pembeli: " + buyer);
     if (phone) lines.push("HP: " + phone);
   }
