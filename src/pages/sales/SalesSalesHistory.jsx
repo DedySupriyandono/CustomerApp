@@ -425,24 +425,40 @@ export default function SalesSalesHistory() {
                       )}
                       {detail?.items && (
                         <div className="pt-3 space-y-2">
-                          {detail.items.map((it) => (
-                            <div
-                              key={it.valueId}
-                              className="bg-white rounded-xl px-3 py-2 border border-[#F6F3F3] flex justify-between items-center gap-2"
-                            >
-                              <div className="min-w-0 flex-1">
-                                <p className="text-[12px] font-semibold text-[#1A0000] truncate">
-                                  {it.productName || it.productNumber || "-"}
-                                </p>
-                                <p className="text-[10px] text-gray-500 font-mono truncate">
-                                  SN: {it.sn || "-"}
-                                </p>
+                          {detail.items.map((it) => {
+                            const isReturned = !!it.returnedAt;
+                            return (
+                              <div
+                                key={it.valueId}
+                                className={"rounded-xl px-3 py-2 border flex justify-between items-center gap-2 "
+                                  + (isReturned ? "bg-amber-50 border-amber-200" : "bg-white border-[#F6F3F3]")}
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <p className={"text-[12px] font-semibold truncate " + (isReturned ? "text-amber-900 line-through" : "text-[#1A0000]")}>
+                                      {it.productName || it.productNumber || "-"}
+                                    </p>
+                                    {isReturned && (
+                                      <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500 text-white shrink-0">
+                                        Returned
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] text-gray-500 font-mono truncate">
+                                    SN: {it.sn || "-"}
+                                  </p>
+                                  {isReturned && it.returnedArnNo && (
+                                    <p className="text-[10px] text-amber-700 truncate">
+                                      Ref: {it.returnedArnNo}
+                                    </p>
+                                  )}
+                                </div>
+                                <span className={"text-[12px] font-bold shrink-0 " + (isReturned ? "text-amber-700 line-through" : "text-[#B20605]")}>
+                                  {rupiah(it.unitPrice)}
+                                </span>
                               </div>
-                              <span className="text-[12px] font-bold text-[#B20605] shrink-0">
-                                {rupiah(it.unitPrice)}
-                              </span>
-                            </div>
-                          ))}
+                            );
+                          })}
                           {/* Print buttons — 2 opsi */}
                           <div className="grid grid-cols-2 gap-2 mt-3">
                             <button
