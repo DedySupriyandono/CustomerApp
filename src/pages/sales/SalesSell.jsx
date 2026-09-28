@@ -64,6 +64,7 @@ export default function SalesSell() {
 
   const [buyerName, setBuyerName] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
+  const [buyerCode, setBuyerCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   // Customer list dari outlet SF login — dipakai untuk combobox suggestion di
   // Nama Pembeli. Kalau user pilih dari list, HP auto-fill. Kalau ketik custom,
@@ -201,7 +202,7 @@ export default function SalesSell() {
     console.log("[sell-cart] hydrate: START sales=", sales, "key=", STORAGE_KEY);
     let cancelled = false;
     hydratedRef.current = false;
-    setCart([]); setBuyerName(""); setBuyerPhone("");
+    setCart([]); setBuyerName(""); setBuyerPhone(""); setBuyerCode("");
     (async () => {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
@@ -230,6 +231,7 @@ export default function SalesSell() {
           }
           if (s && typeof s.buyerName === "string") setBuyerName(s.buyerName);
           if (s && typeof s.buyerPhone === "string") setBuyerPhone(s.buyerPhone);
+          if (s && typeof s.buyerCode === "string") setBuyerCode(s.buyerCode);
         } else {
           console.log("[sell-cart] hydrate: no saved cart");
         }
@@ -246,13 +248,13 @@ export default function SalesSell() {
   useEffect(() => {
     if (!hydratedRef.current) { console.log("[sell-cart] save: SKIP (not hydrated yet)", { cartLen: cart.length }); return; }
     try {
-      const payload = JSON.stringify({ cart, buyerName, buyerPhone });
+      const payload = JSON.stringify({ cart, buyerName, buyerPhone, buyerCode });
       localStorage.setItem(STORAGE_KEY, payload);
       console.log("[sell-cart] save: OK key=", STORAGE_KEY, "cartLen=", cart.length, "bytes=", payload.length);
     } catch (e) {
       console.error("[sell-cart] save: FAIL", e);
     }
-  }, [cart, buyerName, buyerPhone]);
+  }, [cart, buyerName, buyerPhone, buyerCode]);
 
   function beep(ok) {
     try {
@@ -580,18 +582,32 @@ export default function SalesSell() {
       alert(`SN ${cart[badIdx].qr}: harga jual harus > 0.`);
       return;
     }
+    // Guard pembeli: nama, no HP, kode wajib diisi (identifikasi customer).
+    if (!buyerName.trim()) {
+      alert("Nama pembeli wajib diisi.");
+      return;
+    }
+    if (!buyerPhone.trim()) {
+      alert("No. HP pembeli wajib diisi.");
+      return;
+    }
+    if (!buyerCode.trim()) {
+      alert("ID Outlet wajib diisi.");
+      return;
+    }
     if (!window.confirm(`Konfirmasi jual ${cart.length} item senilai ${rupiah(cartTotal)}?`)) return;
     setSubmitting(true);
     try {
       const r = await salesApi.post("/sales/sell", {
         items: cart.map((x) => ({ qr: x.qr, unitPrice: x.unitPrice })),
-        buyerName: buyerName.trim() || null,
-        buyerPhone: buyerPhone.trim() || null,
+        buyerName: buyerName.trim(),
+        buyerPhone: buyerPhone.trim(),
+        buyerCode: buyerCode.trim(),
       });
       if (r.data?.success) {
         await stopCamera();
         alert(`${r.data.message}\nTotal: ${rupiah(r.data.totalAmount)}`);
-        setCart([]); setBuyerName(""); setBuyerPhone("");
+        setCart([]); setBuyerName(""); setBuyerPhone(""); setBuyerCode("");
         try { localStorage.removeItem(STORAGE_KEY); } catch {}
         unclaimAllMine();
         setStatusKind(""); setStatusMsg("");
@@ -970,6 +986,7 @@ export default function SalesSell() {
                           onClick={() => {
                             setBuyerName(c.customerName || "");
                             if (c.phone) setBuyerPhone(c.phone);
+                            setBuyerCode(c.customerCode || "");
                             setShowBuyerDropdown(false);
                           }}
                           className="w-full text-left px-3 py-2 text-[12px] hover:bg-[#FFF5F5] border-b border-gray-100 last:border-b-0"
@@ -997,6 +1014,15 @@ export default function SalesSell() {
                 onChange={(e) => setBuyerPhone(e.target.value)}
                 placeholder="No. HP pembeli"
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px]"
+              />
+
+              <input
+                type="text"
+                value={buyerCode}
+                onChange={(e) => setBuyerCode(e.target.value)}
+                placeholder="ID Outlet (auto-isi kalau pilih outlet)"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px]"
+                maxLength={50}
               />
             </div>
           </div>
