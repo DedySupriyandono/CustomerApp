@@ -111,10 +111,10 @@ export default function SalesSell() {
     for (const q of Object.keys(c)) if (c[q] === tabIdRef.current) delete c[q];
     writeClaims(c);
   };
-  const isClaimedByOther = (qr) => {
-    const c = readClaims();
-    return c[qr] && c[qr] !== tabIdRef.current;
-  };
+  // Cross-tab claim check di-nonaktifkan — server adalah single source of truth
+  // (SN Available/Sold). Kalau 2 tab scan SN sama, yg kedua akan ditolak server
+  // saat commit (sudah Sold). UI noise "dipakai di tab lain" dihilangkan.
+  const isClaimedByOther = (_qr) => false;
 
   // Scan Range state — bulk add SN dari From..To (max 1000 per batch).
   // Untuk voucher/kartu perdana yg SN-nya sequential numeric — cepat drpd
