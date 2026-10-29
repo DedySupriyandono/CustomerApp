@@ -4,6 +4,7 @@ import {
   ArrowLeft, Bell, ShoppingCart, Search,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
   Calendar, Receipt, Package, Printer, User, Phone, X,
+  Edit2,
 } from "lucide-react";
 import salesApi from "../../api/salesApi";
 import SalesBottomNav from "../../components/SalesBottomNav";
@@ -54,6 +55,59 @@ export default function SalesSalesHistory() {
   const [expanded, setExpanded] = useState(null);
   const [detailCache, setDetailCache] = useState({});
   const [detailLoading, setDetailLoading] = useState(false);
+
+  // Edit buyer modal state
+  const [editSale, setEditSale]       = useState(null);   // { saleNumber, buyerName, buyerPhone, buyerCode } | null
+  const [editSaving, setEditSaving]   = useState(false);
+  const [editError, setEditError]     = useState("");
+
+  const openEditBuyer = (sale) => {
+    setEditError("");
+    setEditSale({
+      saleNumber: sale.saleNumber,
+      buyerName:  sale.buyerName  || "",
+      buyerPhone: sale.buyerPhone || "",
+      buyerCode:  sale.buyerCode  || "",
+    });
+  };
+  const saveEditBuyer = async () => {
+    if (!editSale) return;
+    setEditSaving(true);
+    setEditError("");
+    try {
+      const r = await salesApi.put(
+        `/sales/sell/history/${encodeURIComponent(editSale.saleNumber)}/buyer`,
+        {
+          BuyerName:  editSale.buyerName  || null,
+          BuyerPhone: editSale.buyerPhone || null,
+          BuyerCode:  editSale.buyerCode  || null,
+        },
+      );
+      const upd = r.data || {};
+      // Update list row inline
+      setSales((rows) => rows.map((x) => x.saleNumber === editSale.saleNumber
+        ? { ...x, buyerName: upd.buyerName, buyerPhone: upd.buyerPhone, buyerCode: upd.buyerCode }
+        : x));
+      // Update detail cache kalau sudah pernah di-fetch
+      setDetailCache((c) => {
+        if (!c[editSale.saleNumber]) return c;
+        return {
+          ...c,
+          [editSale.saleNumber]: {
+            ...c[editSale.saleNumber],
+            buyerName:  upd.buyerName,
+            buyerPhone: upd.buyerPhone,
+            buyerCode:  upd.buyerCode,
+          },
+        };
+      });
+      setEditSale(null);
+    } catch (e) {
+      setEditError(e.response?.data?.message || e.message || "Gagal menyimpan.");
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -361,9 +415,12 @@ export default function SalesSalesHistory() {
                   key={s.saleNumber}
                   className="bg-white rounded-2xl shadow-[0_2px_15px_rgba(0,0,0,0.03)] border border-[#F6F3F3] overflow-hidden"
                 >
-                  <button
+                  <div
                     onClick={() => toggleExpand(s.saleNumber)}
-                    className="w-full p-4 text-left"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleExpand(s.saleNumber); } }}
+                    className="w-full p-4 text-left cursor-pointer"
                   >
                     <div className="flex justify-between items-start pb-3 border-b border-gray-100 border-dashed mb-3">
                       <div className="min-w-0 flex-1 pr-2">
@@ -374,9 +431,20 @@ export default function SalesSalesHistory() {
                           {s.soldAt ? new Date(s.soldAt).toLocaleString("id-ID") : "-"}
                         </p>
                       </div>
-                      <div className="bg-[#E6F4EA] text-[#1F7A4D] px-3 py-1.5 rounded-full text-[11px] font-semibold shrink-0 flex items-center gap-1">
-                        Sold
-                        {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openEditBuyer(s); }}
+                          className="w-8 h-8 rounded-full bg-[#FBF9F9] hover:bg-[#F3EDED] border border-[#F6F3F3] flex items-center justify-center"
+                          aria-label="Ubah info pembeli"
+                          title="Ubah nama / HP / ID outlet"
+                        >
+                          <Edit2 className="w-3.5 h-3.5 text-[#B20605]" />
+                        </button>
+                        <div className="bg-[#E6F4EA] text-[#1F7A4D] px-3 py-1.5 rounded-full text-[11px] font-semibold flex items-center gap-1">
+                          Sold
+                          {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                        </div>
                       </div>
                     </div>
 
@@ -413,7 +481,7 @@ export default function SalesSalesHistory() {
                         </span>
                       </div>
                     </div>
-                  </button>
+                  </div>
 
                   {open && (
                     <div className="px-4 pb-4 border-t border-gray-100 bg-[#FBF9F9]">
@@ -525,6 +593,89 @@ export default function SalesSalesHistory() {
       </div>
 
       <SalesBottomNav />
+
+      {editSale && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4"
+          onClick={() => !editSaving && setEditSale(null)}
+        >
+          <div
+            className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="min-w-0">
+                <h3 className="text-[15px] font-bold text-[#1A0000]">Ubah Info Pembeli</h3>
+                <p className="text-[11px] text-gray-400 truncate">{editSale.saleNumber}</p>
+              </div>
+              <button
+                onClick={() => !editSaving && setEditSale(null)}
+                className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center"
+                aria-label="Tutup"
+              >
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-500 mb-1">Nama Pembeli</label>
+                <input
+                  type="text"
+                  value={editSale.buyerName}
+                  onChange={(e) => setEditSale((s) => ({ ...s, buyerName: e.target.value }))}
+                  placeholder="mis. ZIKRI CELL"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:border-[#B20605]"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-500 mb-1">No. HP</label>
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  value={editSale.buyerPhone}
+                  onChange={(e) => setEditSale((s) => ({ ...s, buyerPhone: e.target.value }))}
+                  placeholder="mis. 085368927174"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:border-[#B20605]"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-500 mb-1">ID Outlet</label>
+                <input
+                  type="text"
+                  value={editSale.buyerCode}
+                  onChange={(e) => setEditSale((s) => ({ ...s, buyerCode: e.target.value }))}
+                  placeholder="mis. 1201038163"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] font-mono focus:outline-none focus:border-[#B20605]"
+                />
+              </div>
+              {editError && (
+                <div className="text-[12px] text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                  {editError}
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-4 border-t border-gray-100 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setEditSale(null)}
+                disabled={editSaving}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-[13px] font-semibold text-gray-700 disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={saveEditBuyer}
+                disabled={editSaving}
+                className="flex-1 py-2.5 rounded-xl bg-[#B20605] text-white text-[13px] font-semibold disabled:opacity-60"
+              >
+                {editSaving ? "Menyimpan..." : "Simpan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
