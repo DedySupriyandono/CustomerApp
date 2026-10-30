@@ -960,7 +960,7 @@ export default function SalesSell() {
                   );
                 })()}
 
-                <ul className="divide-y divide-gray-100">
+                <ul className="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto pr-1">
                   {cart.map((it) => (
                     <CartRow
                       key={it.qr}
