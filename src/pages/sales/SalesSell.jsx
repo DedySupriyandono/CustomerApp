@@ -15,35 +15,50 @@ import { qrExtract } from "../../utils/qrNormalize";
 // tiap parent update state lain (buyer name/phone, accordion, dsb).
 // Props diminimalkan (qr, productName, unitPrice) supaya shallow compare cepat.
 // Handler di parent WAJIB useCallback biar identity stabil antar render.
-const CartRow = memo(function CartRow({ qr, productName, unitPrice, onRemove, onPriceChange }) {
+// collapsed=true → hanya tampil nama+SN+harga teks (compact) biar scroll 1200 SN enteng.
+const CartRow = memo(function CartRow({ qr, productName, unitPrice, collapsed, onRemove, onPriceChange, onToggle }) {
   return (
     <li className="py-2.5">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <div className="text-[13px] font-semibold text-[#1A0000] truncate">{productName}</div>
           <div className="text-[11px] text-[#B20605]"><code>{qr}</code></div>
+          {collapsed && (
+            <div className="text-[11px] text-gray-500 mt-0.5">Harga: {rupiah(unitPrice)}</div>
+          )}
         </div>
-        <button
-          onClick={() => onRemove(qr)}
-          aria-label="Hapus"
-          className="text-gray-400 hover:text-red-500"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => onToggle(qr)}
+            aria-label={collapsed ? "Buka" : "Tutup"}
+            className="text-gray-400 hover:text-gray-700 p-1"
+          >
+            {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={() => onRemove(qr)}
+            aria-label="Hapus"
+            className="text-gray-400 hover:text-red-500 p-1"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
-      <div className="mt-1.5 flex items-center gap-2">
-        <span className="text-[11px] text-gray-500">Harga Jual</span>
-        {/* SF boleh override harga (bebas > 0). Server log ke sales_price_overrides
-            + update SSV.SalesPrice. MasterSalesPrice tetap snapshot immutable. */}
-        <input
-          type="number"
-          value={unitPrice}
-          min="1"
-          step="1"
-          onChange={(e) => onPriceChange(qr, e.target.value)}
-          className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-[12px] text-right"
-        />
-      </div>
+      {!collapsed && (
+        <div className="mt-1.5 flex items-center gap-2">
+          <span className="text-[11px] text-gray-500">Harga Jual</span>
+          {/* SF boleh override harga (bebas > 0). Server log ke sales_price_overrides
+              + update SSV.SalesPrice. MasterSalesPrice tetap snapshot immutable. */}
+          <input
+            type="number"
+            value={unitPrice}
+            min="1"
+            step="1"
+            onChange={(e) => onPriceChange(qr, e.target.value)}
+            className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-[12px] text-right"
+          />
+        </div>
+      )}
     </li>
   );
 });
@@ -56,6 +71,8 @@ export default function SalesSell() {
   const { sales } = useSalesAuth();
 
   const [cart, setCart] = useState([]);
+  // Set of qrs yang di-EXPAND; default row collapsed → 1200 SN scroll ringan.
+  const [expandedRows, setExpandedRows] = useState(() => new Set());
   const [manualQr, setManualQr] = useState("");
   const [statusMsg, setStatusMsg] = useState("");
   const [statusKind, setStatusKind] = useState("");
@@ -344,6 +361,22 @@ export default function SalesSell() {
   const updatePrice = useCallback((qr, val) => {
     const num = Number(val) || 0;
     setCart((prev) => prev.map((x) => (x.qr === qr ? { ...x, unitPrice: num } : x)));
+  }, []);
+
+  const toggleRowExpand = useCallback((qr) => {
+    setExpandedRows((prev) => {
+      const n = new Set(prev);
+      if (n.has(qr)) n.delete(qr); else n.add(qr);
+      return n;
+    });
+  }, []);
+
+  const expandAllRows = useCallback(() => {
+    setExpandedRows(new Set(cart.map((x) => x.qr)));
+  }, [cart]);
+
+  const collapseAllRows = useCallback(() => {
+    setExpandedRows(new Set());
   }, []);
 
   // Bulk edit harga per productId — kasus promo 300 SN sama product perlu
@@ -865,7 +898,18 @@ export default function SalesSell() {
           <div className="bg-white rounded-2xl p-4 border border-[#F6F3F3] shadow-[0_2px_15px_rgba(0,0,0,0.03)] mb-3">
             <div className="flex items-center justify-between mb-3">
               <div className="font-bold text-[#1A0000] text-[14px]">Keranjang Jual</div>
-              <div className="text-[12px] text-gray-500">{cart.length} item</div>
+              <div className="flex items-center gap-2">
+                {cart.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={expandedRows.size === cart.length ? collapseAllRows : expandAllRows}
+                    className="text-[11px] text-[#B20605] font-semibold"
+                  >
+                    {expandedRows.size === cart.length ? "Tutup semua" : "Buka semua"}
+                  </button>
+                )}
+                <div className="text-[12px] text-gray-500">{cart.length} item</div>
+              </div>
             </div>
             {cart.length === 0 ? (
               <div className="text-[12px] text-gray-400 text-center py-4">
@@ -923,8 +967,10 @@ export default function SalesSell() {
                       qr={it.qr}
                       productName={it.productName}
                       unitPrice={it.unitPrice}
+                      collapsed={!expandedRows.has(it.qr)}
                       onRemove={removeItem}
                       onPriceChange={updatePrice}
+                      onToggle={toggleRowExpand}
                     />
                   ))}
                 </ul>
